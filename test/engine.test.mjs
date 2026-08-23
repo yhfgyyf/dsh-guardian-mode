@@ -55,18 +55,20 @@ test('Luna summary and Sol audit use independent persistent threads', async () =
   })
 })
 
-test('manual and final audit prompts do not require their own future verdict in the trace', async () => {
+test('auto, manual, and final audit prompts respect sidecar-only verdict isolation', async () => {
   await fixture(async ({ engine, calls }) => {
     await engine.attach('s1')
+    await engine.audit('s1', events, { objective: 'verify evidence', reason: 'auto', force: true })
     await engine.audit('s1', events, { objective: 'verify evidence', reason: 'manual', force: true })
     await engine.audit('s1', events, { objective: 'verify evidence', reason: 'final', final: true, force: true })
     const lunaPrompts = calls.filter(([role]) => role === 'luna').map(([, prompt]) => prompt)
     const solPrompts = calls.filter(([role]) => role === 'sol').map(([, prompt]) => prompt)
-    for (const [index, kind] of ['manual', 'final'].entries()) {
+    for (const [index, kind] of ['auto', 'manual', 'final'].entries()) {
       for (const prompt of [lunaPrompts[index], solPrompts[index]]) {
         assert.match(prompt, new RegExp(`active ${kind} audit triggered after trace capture`))
-        assert.match(prompt, /verdict cannot already appear in the input trace/)
-        assert.match(prompt, /Do not report the absence of this audit's verdict/)
+        assert.match(prompt, /verdicts and feedback are intentionally sidecar\/UI-only/)
+        assert.match(prompt, /never enter the main DSH trace/)
+        assert.match(prompt, /Do not report absent Guardian output/)
       }
     }
   })
