@@ -24,6 +24,41 @@ test('lineFor keeps tool names and error codes', () => {
   assert.equal(result.error, 'E')
 })
 
+test('PTC dispatch and nested tool results preserve bounded textual evidence', () => {
+  const dispatch = lineFor({
+    seq: 8,
+    type: 'tool/code-dispatch',
+    data: {
+      name: 'bash',
+      arguments: { command: 'git rev-parse HEAD' },
+      isError: false,
+      content: [{ type: 'text', text: 'ba9074035a9879ebdd36f955610c2928a9049e05\n' }]
+    }
+  })
+  assert.equal(dispatch.name, 'bash')
+  assert.match(dispatch.content, /ba9074035a9879/)
+
+  const nested = lineFor({
+    seq: 9,
+    type: 'tool/result',
+    data: {
+      message: {
+        content: [{
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          content: [
+            { type: 'text', text: 'python/sglang/srt/models/deepseek_v4.py:120' },
+            { type: 'image', data: 'base64-binary' }
+          ]
+        }]
+      }
+    }
+  })
+  assert.match(nested.content, /deepseek_v4\.py:120/)
+  assert.equal(nested.contentChars, 43)
+  assert.doesNotMatch(nested.content, /base64-binary/)
+})
+
 test('trace keeps bounded progress text while redacting common key-value secrets', () => {
   assert.equal(redactText('password=hunter2 token:abc123 api_key="value"'), 'password=[REDACTED] token:[REDACTED] api_key="[REDACTED]"')
   const result = lineFor({ seq: 2, type: 'tool/result', data: { message: { name: 'bash', content: [{ type: 'text', text: 'tests: 4 passed' }] } } })
