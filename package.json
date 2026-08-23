@@ -1,0 +1,101 @@
+{
+ "name": "dsh-guardian-mode",
+ "version": "0.1.0",
+ "description": "Fifth DeepSeek Harness mode: a guardian-preset session with an independent Codex-powered auditor, incremental trace summaries, adaptive audit cadence, safety pauses, and a dedicated Todo/Goal dock strip.",
+ "license": "MIT",
+ "type": "module",
+ "main": "index.js",
+ "exports": {
+  ".": "./index.js",
+  "./client": {
+   "types": "./lib/client.d.ts",
+   "default": "./lib/client.js"
+  },
+  "./invariant": "./lib/invariant.js",
+  "./cordis.patch.yml": "./cordis.patch.yml",
+  "./package.json": "./package.json"
+ },
+ "files": [
+  "index.js",
+  "lib",
+  "presets",
+  "scripts",
+  "test",
+  "cordis.patch.yml",
+  "README.md",
+  "README.zh-CN.md",
+  "LICENSE"
+ ],
+ "engines": {
+  "node": ">=22.19.0"
+ },
+  "scripts": {
+  "test": "node --test test/*.test.mjs",
+  "check": "node --check index.js && node --check lib/*.js && node scripts/check-package.mjs && node --test test/*.test.mjs",
+  "build:preset": "node scripts/build-preset.mjs",
+  "pack:check": "npm pack --dry-run"
+ },
+ "keywords": [
+  "deepseek-harness",
+  "dsh",
+  "dsh-plugin",
+  "agent-preset",
+  "guardian",
+  "auditor",
+  "codex"
+ ],
+ "repository": {
+  "type": "git",
+  "url": "git+https://github.com/yhfgyyf/dsh-guardian-mode.git"
+ },
+ "homepage": "https://github.com/yhfgyyf/dsh-guardian-mode#readme",
+ "bugs": {
+  "url": "https://github.com/yhfgyyf/dsh-guardian-mode/issues"
+ },
+  "peerDependencies": {
+  "@deepseek-ai/cordis": "^4.0.1",
+  "@deepseek-ai/dsh-agent": "^0.1.1-rc.1",
+  "@deepseek-ai/dsh-agent-presets": "^0.1.1-rc.1",
+  "@deepseek-ai/dsh-commands": "^0.1.1-rc.1",
+  "@deepseek-ai/dsh-host-webserver": "^0.1.1-rc.1",
+  "@deepseek-ai/dsh-tools": "^0.1.1-rc.1",
+  "@deepseek-ai/schemastery": "^3.18.1"
+ },
+ "peerDependenciesMeta": {
+  "@deepseek-ai/cordis": {
+   "optional": true
+  },
+  "@deepseek-ai/dsh-agent": {
+   "optional": true
+  },
+  "@deepseek-ai/dsh-agent-presets": {
+   "optional": true
+  },
+  "@deepseek-ai/dsh-commands": {
+   "optional": true
+  },
+  "@deepseek-ai/dsh-host-webserver": {
+   "optional": true
+  },
+  "@deepseek-ai/dsh-tools": {
+   "optional": true
+  },
+  "@deepseek-ai/schemastery": {
+   "optional": true
+  }
+ },
+ "dsh": {
+  "bundle": {
+   "patch": "./cordis.patch.yml"
+  },
+  "client": {
+   "inject": [
+    "@deepseek-ai/dsh-client-runtime",
+    "@deepseek-ai/dsh-client-ui-conversation",
+    "@deepseek-ai/dsh-client-ui-slots",
+    "@deepseek-ai/dsh-client-locale"
+   ],
+   "platform": "web"
+  }
+ }
+}

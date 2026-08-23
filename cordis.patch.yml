@@ -1,0 +1,6 @@
+# The dsh-guardian-mode bundle patch: one dual-face row. The node half mounts
+# the host guardian service (roster + /guardian + Remote API); package.json's
+# dsh.client declaration lets the same row serve the browser dock half.
+- insert:
+    - id: guardian-bundle
+      name: dsh-guardian-mode
