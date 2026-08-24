@@ -27,6 +27,7 @@ test('the guardian composition combines PTC presentation and the cordis toolset'
   assert.match(composition, /tool-cordis/, 'cordis runtime toolset is present')
   assert.match(composition, /skill-filesystem/, 'skill discovery is present')
   assert.match(composition, /tool-skill/, 'skill tool is present')
+  assert.doesNotMatch(composition, /customSkillDirs/, 'remediation skills are not standing catalog entries')
   assert.match(composition, /tool-bash/, 'shell is present')
   assert.match(composition, /tool-fs/, 'filesystem is present')
   assert.match(composition, /tool-goal/, 'goal tool is present')

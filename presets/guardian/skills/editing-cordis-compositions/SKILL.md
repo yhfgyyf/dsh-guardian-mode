@@ -14,4 +14,4 @@ Never edit a preset in the installed DSH package. Copy or change only the plugin
 - Use `agentPresets.standingKeyFor(id)` to mount-validate the finished preset, then create a real session and inspect its tool list. A roster entry alone is not validation.
 - Keep Codex and Claude providers host-side optional bundles; a preset can expose their delegation tools only after the matching provider is installed.
 
-Guardian mode combines the shipped code-mode tool presentation with Cordis self-modification. Keep `guardian_capability` as one stable model-facing bridge and keep auditor summaries, verdicts, findings, and thread state out of the agent composition and main session messages.
+Guardian mode combines the shipped code-mode tool presentation with user-approved Cordis self-modification. Keep `guardian_capability` as one stable model-facing bridge. Unaccepted summaries, verdicts, findings, and all reviewer thread state stay out of the agent composition and main session messages; only the bounded remediation accepted by the user may be appended at the conversation tail.

@@ -1,10 +1,11 @@
 # dsh-guardian-mode
 
 DeepSeek Harness (DSH) 的**第五模式**：preset id `guardian`，把 PTC 的 `code`
-呈现与 `cordis` 工具集组合在同一个会话里，并由**独立审计器**逐轮守护。
+呈现、独立审计和用户批准后的 Cordis 修复回路组合在同一个会话里。
 
 该 preset 保留标准模式全部能力（Shell、文件系统、Web、Skills、Goals、
-子代理、工作流、Code Mode 工具呈现以及 Cordis 运行时工具集）。同时每个
+子代理、工作流和 Code Mode 工具呈现）。Cordis 自修改工具平时对模型隐藏，
+只在用户接受 `critical` 修复后临时开放。同时每个
 会话驱动一个**持久 Codex app-server** 进程：
 
 | Worker | 模型 | Effort | 职责 |
@@ -12,9 +13,10 @@ DeepSeek Harness (DSH) 的**第五模式**：preset id `guardian`，把 PTC 的 
 | luna | `gpt-5.6-luna` | medium | 每轮增量 trace 总结 |
 | sol | `gpt-5.6-sol` | max | 独立审计 → `pass` / `warning` / `critical` |
 
-所有审计反馈写入**独立 sidecar**
-（`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`），**绝不写入**
-会话日志——不污染模型上下文，审计内容也无法反向提示注入被审计会话。
+所有未批准审计反馈和 reviewer 状态写入**独立 sidecar**
+（`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`）。只有用户明确
+accept 后，系统才把边界化的 `<guardian-remediation>` prompt 和必要 Skill
+追加到上下文尾部；不会重写历史消息或暴露原始 reviewer 输出。
 
 ## 安装
 
@@ -43,13 +45,19 @@ dock 里的 guardian 条。
 - `/guardian status` — 轮次、审计间隔、最近判定、暂停状态。
 - `/guardian now` — 立即审计（不受节奏约束）。
 - `/guardian history` — 最近审计（来自 sidecar）。
-- `/guardian resume` — 解除安全/失败暂停。
+- `/guardian accept [audit-id]` — 接受最新/指定审计并进入独立修复轮。
+- `/guardian resume` — 解除非待批准 critical 的失败/手工暂停。
 
 ## 行为
 
-- **自适应节奏**：`pass` 后审计间隔翻倍（1→2→4→8 封顶）；`warning`
-  立即回到 1；`critical` 触发安全边界暂停（取消当前轮次，暂停期间不再
-  审计直到 `resume`）。
+- **审计节奏**：第一次审计至少 2 个 step 且运行 60 秒；之后每 3 个
+  step 或 3 分钟审计，最小间隔 60 秒；异常在下一个安全边界审计。
+- **warning 批准**：warning 出现后主 Agent 默认继续；只有用户 accept，
+  才会暂停当前主 Agent，追加已批准修复 prompt，执行并重新审计。
+- **critical 批准**：critical 先暂停主 Agent 和活动 Goal。用户 accept 后，
+  临时开放专用 Cordis 工具，并在上下文尾部加载
+  `editing-cordis-compositions` 与 `cordis-plugin-development`。修复轮完成后
+  强制验证审计；非 critical 才收回临时能力并恢复原任务。
 - **连续三次失败**（Codex 不可达、超时、回复无法解析）以 `failures`
   原因暂停。
 - **每 5 轮**做一次完整目标对齐审计（目标 + 边界规则 + 近期总结）。
@@ -64,6 +72,7 @@ dock 里的 guardian 条。
 | GET | `/api/guardian/snapshot` | `?session=<id>` |
 | GET | `/api/guardian/watch` | `?session=<id>`（SSE `event: guardian`） |
 | POST | `/api/guardian/request-now` | `{ sessionId, final? }` |
+| POST | `/api/guardian/accept` | `{ sessionId, auditId? }` |
 | POST | `/api/guardian/resume` | `{ sessionId }` |
 
 Web dock 注册在 `conversation.input.dock` **order 5**：显示在 Todo（order
@@ -71,12 +80,12 @@ Web dock 注册在 `conversation.input.dock` **order 5**：显示在 Todo（orde
 
 ## TUI
 
-`dsh-tui-app` 在配置行旁显示独立彩色块（pass 绿、warning 黄、
-critical/暂停 红）：
+`dsh-tui-app` 在配置行旁显示独立彩色块（pass 绿，warning、critical 和暂停红）：
 
-- `c` — 立即审计（空输入框时）
-- `r` — 解除暂停（空输入框时）
-- `Esc` — 折叠/展开该块
+- `a` — 接受待处理修复（空输入框时）
+- `c` — 暂停时复制审计意见
+- `r` — 恢复非 critical-review 暂停
+- `Esc` / `Ctrl+C` — 停止当前任务
 
 ## 开发
 
@@ -96,5 +105,10 @@ npm run pack:check  # npm pack --dry-run
 - 不调用 `session.delete` 或任何会话删除 API；仅通过宿主
   `session/disposed` 事件观察结束并执行最终审计。
 - 不改 auto 路由（仍只路由四模式）。
-- 图片、Skills、Goals、子代理、工作流经 preset 原样流过。
+- 图片、普通 Skills、Goals、子代理、工作流经 preset 原样流过；两项 Guardian
+  composition Skill 仅在批准 critical 后渐进加载。
+- 已持久化消息保持逐字不变；accept 只追加 remediation、运行时 catalog 快照和
+  continuation 尾消息，因此模型可复用此前前缀的 KV cache。动态工具 schema 只影响
+  新请求尾部；若实际修复了 plugin/system prompt，后续重启或新 task 才会按 DSH
+  正常规则重建对应 system 前缀。
 - 不改全局 node_modules；以 profile bundle 方式安装。

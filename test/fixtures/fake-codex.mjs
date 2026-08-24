@@ -6,6 +6,13 @@ let nextThread = 1
 let nextTurn = 1
 const summary = '{"intent":"implement","progress":"tests pass","evidence":["test"],"risks":[],"next":["continue"]}'
 const audit = process.env.FAKE_CODEX_AUDIT ?? '{"verdict":"pass","summary":"on track","findings":[]}'
+const auditSequence = (() => {
+  try {
+    const parsed = JSON.parse(process.env.FAKE_CODEX_AUDITS ?? '[]')
+    return Array.isArray(parsed) ? parsed.map((entry) => JSON.stringify(entry)) : []
+  } catch { return [] }
+})()
+let auditIndex = 0
 const send = (message) => process.stdout.write(JSON.stringify(message) + '\n')
 
 rl.on('line', (line) => {
@@ -35,7 +42,9 @@ rl.on('line', (line) => {
       return
     case 'turn/start': {
       const turnId = `fake-turn-${nextTurn++}`
-      const text = params.threadId?.endsWith('-1') ? summary : audit
+      const text = params.threadId?.endsWith('-1')
+        ? summary
+        : auditSequence.length === 0 ? audit : auditSequence[Math.min(auditIndex++, auditSequence.length - 1)]
       send({ id: message.id, result: { turn: { id: turnId, status: 'inProgress' } } })
       setImmediate(() => {
         send({ method: 'item/agentMessage/delta', params: { threadId: params.threadId, turnId, delta: text } })

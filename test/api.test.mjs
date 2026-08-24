@@ -18,7 +18,7 @@ function fakeWebServer () {
   }
 }
 
-test('registerGuardianApi declares all five Remote endpoints', () => {
+test('registerGuardianApi declares all six Remote endpoints', () => {
   const web = fakeWebServer()
   const ctx = { get: (name) => name === 'webServer' ? web : undefined }
   const service = {
@@ -26,11 +26,13 @@ test('registerGuardianApi declares all five Remote endpoints', () => {
     history: async () => [],
     subscribe: () => () => {},
     requestNow: async () => ({ ok: true }),
+    accept: async () => ({ ok: true }),
     resume: async () => ({ ok: true })
   }
   const dispose = registerGuardianApi(ctx, service)
   const paths = web.routes.map((r) => r.path)
   assert.deepEqual(paths.sort(), [
+    GUARDIAN_API_BASE + '/accept',
     GUARDIAN_API_BASE + '/request-now',
     GUARDIAN_API_BASE + '/resume',
     GUARDIAN_API_BASE + '/snapshot',
@@ -48,6 +50,7 @@ test('snapshot handler answers with the service view', async () => {
     history: async () => [],
     subscribe: () => () => {},
     requestNow: async () => ({ ok: true }),
+    accept: async () => ({ ok: true }),
     resume: async () => ({ ok: true })
   }
   registerGuardianApi(ctx, service)
@@ -73,6 +76,7 @@ test('watch handler streams SSE events until the socket closes', async () => {
     history: async () => [],
     subscribe: (sessionId, listener) => { subscription = listener; return () => {} },
     requestNow: async () => ({ ok: true }),
+    accept: async () => ({ ok: true }),
     resume: async () => ({ ok: true })
   }
   registerGuardianApi(ctx, service)
@@ -95,7 +99,7 @@ test('watch handler streams SSE events until the socket closes', async () => {
   closeHandler()
 })
 
-test('request-now and resume handlers parse the body', async () => {
+test('request-now, accept, and resume handlers parse the body', async () => {
   const web = fakeWebServer()
   const ctx = { get: () => web }
   const calls = []
@@ -104,10 +108,12 @@ test('request-now and resume handlers parse the body', async () => {
     history: async () => [],
     subscribe: () => () => {},
     requestNow: async (sessionId, opts) => { calls.push(['now', sessionId, opts]); return { ok: true } },
+    accept: async (sessionId, auditId) => { calls.push(['accept', sessionId, auditId]); return { ok: true } },
     resume: async (sessionId) => { calls.push(['resume', sessionId]); return { ok: true } }
   }
   registerGuardianApi(ctx, service)
   const now = web.routes.find((r) => r.path.endsWith('/request-now'))
+  const accept = web.routes.find((r) => r.path.endsWith('/accept'))
   const resume = web.routes.find((r) => r.path.endsWith('/resume'))
   async function handler (route, payload) {
     let status = 0; let body = ''
@@ -124,9 +130,12 @@ test('request-now and resume handlers parse the body', async () => {
   const r1 = await handler(now, { sessionId: 'a', final: true })
   assert.equal(r1.status, 200)
   assert.deepEqual(calls[0], ['now', 'a', { reason: 'final', final: true }])
+  const accepted = await handler(accept, { sessionId: 'a', auditId: 'audit-1' })
+  assert.equal(accepted.status, 200)
+  assert.deepEqual(calls[1], ['accept', 'a', 'audit-1'])
   const r2 = await handler(resume, { sessionId: 'b' })
   assert.equal(r2.status, 200)
-  assert.deepEqual(calls[1], ['resume', 'b'])
+  assert.deepEqual(calls[2], ['resume', 'b'])
   const r3 = await handler(now, {})
   assert.equal(r3.status, 400)
 })

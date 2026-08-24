@@ -13,7 +13,8 @@ export const Config = ServiceConfig
 /**
  * Host bundle: add the guardian preset to the roster, provide the guardian
  * service, register /guardian, and mount the Remote API when a webserver
- * exists. Never writes to a session log.
+ * exists. Unaccepted reviews remain sidecar-only; an accepted review is queued
+ * as a new, bounded remediation message instead of rewriting prior history.
  */
 export function apply (ctx, config) {
   const restoreRoster = installPresetRoot(ctx.agentPresets, discoverPresets, GUARDIAN_PRESET_ROOT, 'system')

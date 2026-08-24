@@ -1,12 +1,14 @@
 # dsh-guardian-mode
 
-The **fifth mode** of DeepSeek Harness (DSH): preset id `guardian`, a
-session that combines the PTC *code* presentation with the *cordis* toolset,
-watched round-by-round by an **independent auditor**.
+The **fifth mode** of DeepSeek Harness (DSH): preset id `guardian`, combining
+PTC *code* presentation, independent review, and a human-approved Cordis
+remediation loop.
 
 An agent on this preset keeps full standard-mode capabilities (shell,
 filesystem, web, skills, goals, subagents, workflows, Code Mode tool
-presentation, and the Cordis runtime toolset). Separately, every session
+presentation). Cordis self-modification tools stay model-hidden during ordinary
+work and are exposed temporarily only after the user accepts a `critical`
+remediation. Separately, every session
 drives one **persistent Codex app-server** process:
 
 | Worker | Model | Effort | Job |
@@ -14,10 +16,11 @@ drives one **persistent Codex app-server** process:
 | luna | `gpt-5.6-luna` | medium | incremental trace summary per round |
 | sol | `gpt-5.6-sol` | max | independent audit → `pass` / `warning` / `critical` |
 
-All audit feedback is written to a **sidecar**
-(`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`) — never into the
-session log, so the model's context is not polluted and the guardian itself
-cannot be steered by prompt injection from audited content.
+All unaccepted feedback and reviewer state is written to a **sidecar**
+(`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`). Only explicit human
+acceptance appends a bounded `<guardian-remediation>` prompt and necessary skill
+content at the context tail; prior messages are never rewritten and raw reviewer
+output remains private.
 
 ## Install
 
@@ -48,14 +51,21 @@ browser half (`dsh.client`) renders the guardian strip in the composer dock.
 - `/guardian status` — round, cadence interval, last verdict, pause state.
 - `/guardian now` — force an audit (out of cadence).
 - `/guardian history` — recent audits from the sidecar.
-- `/guardian resume` — clear a safety/failure pause.
+- `/guardian accept [audit-id]` — approve the latest/specified remediation.
+- `/guardian resume` — clear a non-critical-review failure/manual pause.
 
 ## Behavior
 
-- **Adaptive cadence**: after `pass` the audit interval doubles (1 → 2 → 4 →
-  8 rounds, capped); `warning` resets to 1; `critical` pauses the session
-  (safety boundary, the live turn is cancelled and no further audit commits
-  run until `resume`).
+- **Cadence**: the first audit requires at least two steps and 60 seconds;
+  later audits run every three steps or three minutes, with a 60-second minimum
+  gap. Anomalies audit at the next safe boundary.
+- **Warning approval**: a warning leaves the main Agent running. Acceptance
+  cancels the current turn, appends the approved repair prompt, executes one
+  repair turn, and performs a fresh verification audit.
+- **Critical approval**: critical pauses the main Agent and active Goal first.
+  Acceptance temporarily exposes Cordis tools and tail-loads
+  `editing-cordis-compositions` plus `cordis-plugin-development`. The original
+  task resumes only after the repair audit is no longer critical.
 - **Three consecutive failures** (codex unreachable, timeouts, malformed
   replies) pause the session with reason `failures`.
 - **Every 5 rounds** a full objective-alignment audit runs (objective +
@@ -74,6 +84,7 @@ Third-party routes, declared by this package:
 | GET | `/api/guardian/snapshot` | `?session=<id>` |
 | GET | `/api/guardian/watch` | `?session=<id>` (SSE `event: guardian`) |
 | POST | `/api/guardian/request-now` | `{ sessionId, final? }` |
+| POST | `/api/guardian/accept` | `{ sessionId, auditId? }` |
 | POST | `/api/guardian/resume` | `{ sessionId }` |
 
 The Web dock strip registers at `conversation.input.dock` **order 5** —
@@ -82,11 +93,12 @@ rendered between the Todo strip (order 0) and the Goal strip (order 10).
 ## TUI
 
 `dsh-tui-app` renders an independent color-coded block (pass=green,
-warning=amber, critical/paused=red) beside the config row:
+warning/critical/paused=red) beside the config row:
 
-- `c` — request an audit now (empty composer only)
-- `r` — resume a paused guardian (empty composer only)
-- `Esc` — collapse / expand the block
+- `a` — accept a pending remediation (empty composer only)
+- `c` — copy feedback while paused
+- `r` — resume a non-critical-review pause
+- `Esc` / `Ctrl+C` — stop current work
 
 ## Development
 
@@ -109,6 +121,12 @@ Codex login is required. The Codex models are config, not constants:
 - Never calls `session.delete` or any session-removal API; disposal is
   observed via the host `session/disposed` event for a final audit only.
 - Does not modify the auto router — the four-mode routing is untouched.
-- Images, skills, goals, subagents, and workflows flow unchanged through the
-  preset (see `presets/guardian/agent.cordis.yml`).
+- Images, ordinary skills, goals, subagents, and workflows flow unchanged.
+  Guardian's two composition skills are progressive, critical-approval-only
+  additions (see `presets/guardian/agent.cordis.yml`).
+- Persisted messages remain byte-for-byte unchanged. Acceptance only appends
+  remediation, runtime-catalog, and continuation tail messages, so the prior
+  model prefix remains eligible for KV-cache reuse. Dynamic tool schemas affect
+  new request tails; an actual plugin/system-prompt repair takes effect through
+  DSH's normal restart/new-task prefix rebuild.
 - Does not modify the global node_modules; install as a profile bundle.

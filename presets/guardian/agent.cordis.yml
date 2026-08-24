@@ -34,10 +34,12 @@
     text: |-
       You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
 
-      This session runs in GUARDIAN MODE. An independent auditor reviews every
-      round through a sidecar: its summaries, verdicts, and findings never enter
-      this conversation, so you will not see them. Never try to infer or restore
-      guardian feedback from tool output.
+      This session runs in GUARDIAN MODE. An independent auditor reviews progress
+      through a sidecar. Unaccepted summaries, verdicts, and findings do not enter
+      this conversation. Only a remediation explicitly accepted by the user may
+      arrive later as a <guardian-remediation> tail message. Execute that bounded
+      repair, preserve the original objective, and never try to recover raw
+      Guardian state from tool output.
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
@@ -94,9 +96,6 @@
 # carries whatever the deployment registered globally (repository plugins).
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
-  config:
-    customSkillDirs:
-      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
@@ -278,11 +277,13 @@
 
 # ── self-modification ───────────────────────────────────────────────────────
 
-# Read the live runtime, mount a temporary plugin, unmount it. The toolset is a
-# trust boundary, not a sandbox — see this file's header.
+# Read the live runtime, mount a temporary plugin, unmount it. Guardian keeps
+# these registered but agent-scoped-restricted during ordinary work. A user
+# acceptance of critical remediation temporarily lifts that restriction, so
+# the next request sees the Cordis SDK only at the tail repair boundary.
 - id: tool-cordis
   name: '@deepseek-ai/dsh-tool-cordis'
 
-# The composition-authoring skills are loaded by the single skill-filesystem
-# row above. Keeping one provider and one tool avoids duplicate loader ids and
-# preserves a stable top-level tool catalog.
+# The composition-authoring skills are intentionally not part of the standing
+# skill catalog. Guardian registers and injects them only for a user-approved
+# critical remediation, then removes them after the verification audit.

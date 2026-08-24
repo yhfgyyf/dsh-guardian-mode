@@ -44,6 +44,10 @@ test('the browser half registers the guardian dock at order 5', async () => {
   loadedExports.apply(ctx)
   assert.deepEqual(registrations, [{ name: 'conversation.input.dock', id: 'guardian', order: 5 }])
   assert.equal(loadedExports.GUARDIAN_DOCK_ORDER, 5)
+  assert.match(clientSource, /\/api\/guardian\/accept/)
+  assert.match(clientSource, /accept repair/)
+  assert.match(clientSource, /retry repair/)
+  assert.match(clientSource, /remediationIncomplete/)
   // order 5 sits strictly between the shipped todo (0) and goal (10) entries
   assert.ok(0 < 5 && 5 < 10)
 })

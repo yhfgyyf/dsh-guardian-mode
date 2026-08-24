@@ -15,4 +15,4 @@ Use this only when the current task genuinely needs a DSH capability that the mo
 6. Preview and define the smallest implementation, activate the exact returned package, inspect diagnostics, then verify the behavior that motivated the change.
 7. Stop or roll back a bad package. Permanently undefine only when the user explicitly wants deletion.
 
-For Guardian extensions, keep the top-level model tool fixed as `guardian_capability`. Register new behavior behind the Guardian service capability registry so the early prompt and tool catalog do not change. Never expose audit feedback through this bridge and never add it to the DSH session event log.
+For Guardian extensions, keep the top-level model tool fixed as `guardian_capability`. Register new behavior behind the Guardian service capability registry so the early prompt and tool catalog do not change. Never expose raw or unaccepted audit feedback through this bridge. An accepted remediation is a bounded tail message owned by the approval service, not a general feedback API.

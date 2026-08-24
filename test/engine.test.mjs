@@ -55,7 +55,7 @@ test('Luna summary and Sol audit use independent persistent threads', async () =
   })
 })
 
-test('auto, manual, and final audit prompts respect sidecar-only verdict isolation', async () => {
+test('auto, manual, and final audit prompts respect approval-gated verdict isolation', async () => {
   await fixture(async ({ engine, calls }) => {
     await engine.attach('s1')
     await engine.audit('s1', events, { objective: 'verify evidence', reason: 'auto', force: true })
@@ -66,8 +66,8 @@ test('auto, manual, and final audit prompts respect sidecar-only verdict isolati
     for (const [index, kind] of ['auto', 'manual', 'final'].entries()) {
       for (const prompt of [lunaPrompts[index], solPrompts[index]]) {
         assert.match(prompt, new RegExp(`active ${kind} audit triggered after trace capture`))
-        assert.match(prompt, /verdicts and feedback are intentionally sidecar\/UI-only/)
-        assert.match(prompt, /never enter the main DSH trace/)
+        assert.match(prompt, /Unaccepted Guardian verdicts and feedback are sidecar\/UI-only/)
+        assert.match(prompt, /only inside a <guardian-remediation> tail message after explicit user acceptance/)
         assert.match(prompt, /Do not report absent Guardian output/)
       }
     }
@@ -95,7 +95,38 @@ test('critical feedback pauses at the boundary and preserves recommendations', a
     assert.equal(result.state.paused, true)
     assert.equal(result.state.pauseReason, 'safety')
     assert.equal(result.state.lastAudit.findings[0].recommendation, 'repair dispatch')
+    assert.equal(result.state.pendingApproval.auditId, result.audit.id)
+    assert.equal(result.state.pendingApproval.status, 'pending')
   }, { verdict: 'critical', findings: [{ message: 'bad dispatch', evidence: 'trace', recommendation: 'repair dispatch' }] })
+})
+
+test('accepted audit persists remediation lifecycle without rewriting audit history', async () => {
+  await fixture(async ({ engine }) => {
+    await engine.attach('s1')
+    const result = await engine.audit('s1', events, { reason: 'manual', force: true })
+    const accepted = await engine.accept('s1', result.audit.id)
+    assert.equal(accepted.remediation.phase, 'queued')
+    assert.equal(accepted.auditCount, 1)
+    await engine.remediationRunning('s1')
+    await engine.remediationVerifying('s1')
+    const settled = await engine.remediationSettled('s1', { id: 'verify-audit', verdict: 'pass' })
+    assert.equal(settled.resumable, true)
+    assert.equal(settled.view.remediation.phase, 'completed')
+    assert.equal(settled.view.auditCount, 1)
+  }, { verdict: 'warning', findings: [{ message: 'gap', evidence: 'trace', recommendation: 'repair it' }] })
+})
+
+test('a failed remediation turn is persisted without running verification', async () => {
+  await fixture(async ({ engine }) => {
+    await engine.attach('s1')
+    const result = await engine.audit('s1', events, { reason: 'manual', force: true })
+    await engine.accept('s1', result.audit.id)
+    await engine.remediationRunning('s1')
+    const failed = await engine.remediationFailed('s1', { kind: 'error', error: { code: 'MODEL_DOWN', message: 'offline' } })
+    assert.equal(failed.remediation.phase, 'execution-failed')
+    assert.equal(failed.remediation.executionFailure.code, 'MODEL_DOWN')
+    assert.equal(failed.paused, true)
+  }, { verdict: 'critical', findings: [] })
 })
 
 test('three consecutive infrastructure failures pause without model fallback', async () => {
