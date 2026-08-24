@@ -1,6 +1,6 @@
 {
  "name": "dsh-guardian-mode",
- "version": "0.2.0",
+ "version": "0.3.0",
  "description": "Fifth DeepSeek Harness mode with independent Codex audits, user-approved remediation turns, progressive Cordis/skill elevation, safety pauses, and Web/TUI review controls.",
  "license": "MIT",
  "type": "module",

@@ -18,9 +18,10 @@ drives one **persistent Codex app-server** process:
 
 All unaccepted feedback and reviewer state is written to a **sidecar**
 (`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`). Only explicit human
-acceptance appends a bounded `<guardian-remediation>` prompt and necessary skill
-content at the context tail; prior messages are never rewritten and raw reviewer
-output remains private.
+acceptance appends a bounded `<guardian-remediation>` prompt and capability
+lease at the context tail. The model then loads the named skills through DSH's
+stable `skill` tool; prior messages are never rewritten and raw reviewer output
+remains private.
 
 ## Install
 
@@ -28,7 +29,9 @@ output remains private.
 # in your dsh profile (profiles/web and profiles/tui use the same pattern)
 cd ~/.dsh/profiles/web
 pnpm add dsh-guardian-mode@github:yhfgyyf/dsh-guardian-mode
-# add "dsh-guardian-mode" to package.json dsh.profile.bundles (both profiles),
+# Recommended stable tool discovery for Guardian and Auto target presets:
+pnpm add dsh-progressive-tools@github:yhfgyyf/dsh-progressive-tools
+# add both bundles to package.json dsh.profile.bundles (both profiles),
 # then restart the profile.
 ```
 
@@ -63,9 +66,11 @@ browser half (`dsh.client`) renders the guardian strip in the composer dock.
   cancels the current turn, appends the approved repair prompt, executes one
   repair turn, and performs a fresh verification audit.
 - **Critical approval**: critical pauses the main Agent and active Goal first.
-  Acceptance temporarily exposes Cordis tools and tail-loads
-  `editing-cordis-compositions` plus `cordis-plugin-development`. The original
-  task resumes only after the repair audit is no longer critical.
+  Acceptance temporarily exposes Cordis tools and appends a capability lease.
+  The repair Agent must load `editing-cordis-compositions` through the stable
+  `skill` loader, and loads `cordis-plugin-development` only for plugin or
+  model-facing-tool work. The original task resumes only after the repair audit
+  is no longer critical.
 - **Three consecutive failures** (codex unreachable, timeouts, malformed
   replies) pause the session with reason `failures`.
 - **Every 5 rounds** a full objective-alignment audit runs (objective +
@@ -120,13 +125,18 @@ Codex login is required. The Codex models are config, not constants:
 
 - Never calls `session.delete` or any session-removal API; disposal is
   observed via the host `session/disposed` event for a final audit only.
-- Does not modify the auto router — the four-mode routing is untouched.
+- Auto still routes only the original four modes. When the companion auto
+  router supports capability hints, those names are appended after routing and
+  do not alter the original user prompt.
 - Images, ordinary skills, goals, subagents, and workflows flow unchanged.
   Guardian's two composition skills are progressive, critical-approval-only
   additions (see `presets/guardian/agent.cordis.yml`).
 - Persisted messages remain byte-for-byte unchanged. Acceptance only appends
   remediation, runtime-catalog, and continuation tail messages, so the prior
-  model prefix remains eligible for KV-cache reuse. Dynamic tool schemas affect
-  new request tails; an actual plugin/system-prompt repair takes effect through
-  DSH's normal restart/new-task prefix rebuild.
+  message prefix remains eligible for KV-cache reuse. With
+  `dsh-progressive-tools`, Cordis restriction changes affect discovery results
+  rather than the model-visible system/tool prefix. Without that companion,
+  DSH normally rebuilds the Code Mode SDK when visibility changes. An actual
+  plugin/system-prompt repair still takes effect through DSH's normal
+  restart/new-task prefix rebuild.
 - Does not modify the global node_modules; install as a profile bundle.

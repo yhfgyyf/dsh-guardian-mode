@@ -15,8 +15,9 @@ DeepSeek Harness (DSH) 的**第五模式**：preset id `guardian`，把 PTC 的 
 
 所有未批准审计反馈和 reviewer 状态写入**独立 sidecar**
 （`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`）。只有用户明确
-accept 后，系统才把边界化的 `<guardian-remediation>` prompt 和必要 Skill
-追加到上下文尾部；不会重写历史消息或暴露原始 reviewer 输出。
+accept 后，系统才把边界化的 `<guardian-remediation>` prompt 和临时能力租约
+追加到上下文尾部；模型再通过稳定的 `skill` 工具按需加载其中点名的 Skill。
+系统不会重写历史消息或暴露原始 reviewer 输出。
 
 ## 安装
 
@@ -24,7 +25,9 @@ accept 后，系统才把边界化的 `<guardian-remediation>` prompt 和必要 
 # 在你的 dsh profile（profiles/web 与 profiles/tui 同套路）
 cd ~/.dsh/profiles/web
 pnpm add dsh-guardian-mode@github:yhfgyyf/dsh-guardian-mode
-# 把 "dsh-guardian-mode" 加入 package.json 的 dsh.profile.bundles，然后重启 profile
+# Guardian 与 Auto 目标 preset 推荐同时安装稳定工具发现插件：
+pnpm add dsh-progressive-tools@github:yhfgyyf/dsh-progressive-tools
+# 把两个 bundle 都加入 package.json 的 dsh.profile.bundles，然后重启 profile
 ```
 
 本包 patch 只插入一个双面行：
@@ -55,9 +58,10 @@ dock 里的 guardian 条。
 - **warning 批准**：warning 出现后主 Agent 默认继续；只有用户 accept，
   才会暂停当前主 Agent，追加已批准修复 prompt，执行并重新审计。
 - **critical 批准**：critical 先暂停主 Agent 和活动 Goal。用户 accept 后，
-  临时开放专用 Cordis 工具，并在上下文尾部加载
-  `editing-cordis-compositions` 与 `cordis-plugin-development`。修复轮完成后
-  强制验证审计；非 critical 才收回临时能力并恢复原任务。
+  临时开放专用 Cordis 工具并追加能力租约。修复 Agent 必须通过稳定的 `skill`
+  loader 加载 `editing-cordis-compositions`；只有修改 plugin 或模型工具时才加载
+  `cordis-plugin-development`。修复轮完成后强制验证审计；非 critical 才收回
+  临时能力并恢复原任务。
 - **连续三次失败**（Codex 不可达、超时、回复无法解析）以 `failures`
   原因暂停。
 - **每 5 轮**做一次完整目标对齐审计（目标 + 边界规则 + 近期总结）。
@@ -104,11 +108,13 @@ npm run pack:check  # npm pack --dry-run
 
 - 不调用 `session.delete` 或任何会话删除 API；仅通过宿主
   `session/disposed` 事件观察结束并执行最终审计。
-- 不改 auto 路由（仍只路由四模式）。
+- Auto 仍只路由原来的四模式；若配套 auto router 支持 capability hints，提示只在
+  路由完成后追加，不改原始用户 prompt。
 - 图片、普通 Skills、Goals、子代理、工作流经 preset 原样流过；两项 Guardian
   composition Skill 仅在批准 critical 后渐进加载。
 - 已持久化消息保持逐字不变；accept 只追加 remediation、运行时 catalog 快照和
-  continuation 尾消息，因此模型可复用此前前缀的 KV cache。动态工具 schema 只影响
-  新请求尾部；若实际修复了 plugin/system prompt，后续重启或新 task 才会按 DSH
-  正常规则重建对应 system 前缀。
+  continuation 尾消息，因此模型可复用此前消息前缀。配合
+  `dsh-progressive-tools` 时，Cordis restriction 变化只改变发现结果，不改变模型可见
+  的 system/tool 前缀；未安装配套插件时，DSH 仍会按正常规则重建 Code Mode SDK。
+  若实际修复了 plugin/system prompt，后续重启或新 task 才重建对应 system 前缀。
 - 不改全局 node_modules；以 profile bundle 方式安装。
