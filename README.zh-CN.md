@@ -5,13 +5,18 @@ DeepSeek Harness (DSH) 的**第五模式**：preset id `guardian`，把 PTC 的 
 
 该 preset 保留标准模式全部能力（Shell、文件系统、Web、Skills、Goals、
 子代理、工作流和 Code Mode 工具呈现）。Cordis 自修改工具平时对模型隐藏，
-只在用户接受 `critical` 修复后临时开放。同时每个
-会话驱动一个**持久 Codex app-server** 进程：
+只在用户接受 `critical` 修复后临时开放。同时每个会话使用两个隔离 reviewer
+角色；审核后端可配置为 **Codex**、**Claude Code** 或宿主 **DSH LLM
+runtime**。默认仍是一个持久 Codex app-server：
 
-| Worker | 模型 | Effort | 职责 |
+| 角色 | 默认模型 | Effort | 职责 |
 | --- | --- | --- | --- |
 | luna | `gpt-5.6-luna` | medium | 每轮增量 trace 总结 |
 | sol | `gpt-5.6-sol` | max | 独立审计 → `pass` / `warning` / `critical` |
+
+Codex 与 Claude Code 为两个角色维护独立持久会话。DSH 后端直接执行无工具的
+`llm.stream()`，不会再创建 DSH Agent，因此不会递归进入 Guardian；该调用本身
+无状态，所以 Guardian 会在每次 DSH 审核时带上当前任务目标。
 
 所有未批准审计反馈和 reviewer 状态写入**独立 sidecar**
 （`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`）。只有用户明确
@@ -51,6 +56,53 @@ dock 里的 guardian 条。
 - `/guardian accept [audit-id]` — 接受最新/指定审计并进入独立修复轮。
 - `/guardian resume` — 解除非待批准 critical 的失败/手工暂停。
 
+## Reviewer 配置
+
+在 profile 的 `cordis.patch.yml` 里配置 `guardian-bundle`。不写配置时保留
+现有 Codex 默认值：
+
+```yaml
+- id: guardian-bundle
+  config:
+    reviewer: codex
+    binary: codex
+    args: [app-server, --stdio]
+    models:
+      luna: { model: gpt-5.6-luna, effort: medium }
+      sol: { model: gpt-5.6-sol, effort: max }
+```
+
+Claude Code 使用 print + JSON schema、`plan` 权限模式、safe mode，并清空
+model-facing tools；模型名需明确填写为 Claude Code 支持的名称：
+
+```yaml
+- id: guardian-bundle
+  config:
+    reviewer: claude-code
+    claudeBinary: claude
+    claudeArgs: []
+    models:
+      luna: { model: haiku, effort: medium }
+      sol: { model: opus, effort: max }
+```
+
+DSH 后端直接使用已注册 provider。若总结和审计模型位于不同路由，可在角色内用
+`provider` 覆盖 `dshProvider`：
+
+```yaml
+- id: guardian-bundle
+  config:
+    reviewer: dsh
+    dshProvider: deepseek-official
+    dshMaxTokens: 4096
+    models:
+      luna: { model: deepseek-v4-flash, effort: off }
+      sol: { model: deepseek-v4-flash, effort: high }
+```
+
+切换 `reviewer` 不会自动翻译模型名。若目标后端不支持所配模型，Guardian 会明确
+失败，不会静默替换审核模型。
+
 ## 行为
 
 - **审计节奏**：第一次审计至少 2 个 step 且运行 60 秒；之后每 3 个
@@ -62,7 +114,7 @@ dock 里的 guardian 条。
   loader 加载 `editing-cordis-compositions`；只有修改 plugin 或模型工具时才加载
   `cordis-plugin-development`。修复轮完成后强制验证审计；非 critical 才收回
   临时能力并恢复原任务。
-- **连续三次失败**（Codex 不可达、超时、回复无法解析）以 `failures`
+- **连续三次失败**（reviewer 不可达、超时、回复无法解析）以 `failures`
   原因暂停。
 - **每 5 轮**做一次完整目标对齐审计（目标 + 边界规则 + 近期总结）。
 - **最终审计**：会话结束时自动执行（Remote API `final: true` 亦可）。
@@ -101,8 +153,9 @@ npm run pack:check  # npm pack --dry-run
 
 `scripts/build-preset.mjs` 从官方 `code` + `cordis` 合成
 `presets/guardian/agent.cordis.yml`（生成物已入库，包可独立运行）。测试使用
-`test/fixtures/fake-codex.mjs`，无需真实 Codex 登录。Codex 模型是可配置项
-而非常量：`{ "models": { "luna": {...}, "sol": {...} } }`。
+`test/fixtures/fake-codex.mjs` 与 `fake-claude.mjs`，无需真实 reviewer 登录。
+审核后端、模型、effort、二进制、CLI 参数、DSH provider、超时与 DSH 输出上限
+均为配置项，而非常量。
 
 ## 兼容性
 

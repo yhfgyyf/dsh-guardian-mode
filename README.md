@@ -8,13 +8,19 @@ An agent on this preset keeps full standard-mode capabilities (shell,
 filesystem, web, skills, goals, subagents, workflows, Code Mode tool
 presentation). Cordis self-modification tools stay model-hidden during ordinary
 work and are exposed temporarily only after the user accepts a `critical`
-remediation. Separately, every session
-drives one **persistent Codex app-server** process:
+remediation. Separately, every session drives two isolated reviewer roles. The
+reviewer backend is configurable as **Codex**, **Claude Code**, or the host
+**DSH LLM runtime**. The default remains one persistent Codex app-server:
 
-| Worker | Model | Effort | Job |
+| Role | Default model | Effort | Job |
 | --- | --- | --- | --- |
 | luna | `gpt-5.6-luna` | medium | incremental trace summary per round |
 | sol | `gpt-5.6-sol` | max | independent audit → `pass` / `warning` / `critical` |
+
+Codex and Claude Code keep separate persistent role sessions. The DSH backend
+uses direct, tool-free `llm.stream()` calls instead of starting another DSH
+Agent, so it cannot recursively enter Guardian mode. Those calls are stateless,
+so Guardian includes the current objective in every DSH review.
 
 All unaccepted feedback and reviewer state is written to a **sidecar**
 (`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`). Only explicit human
@@ -57,6 +63,54 @@ browser half (`dsh.client`) renders the guardian strip in the composer dock.
 - `/guardian accept [audit-id]` — approve the latest/specified remediation.
 - `/guardian resume` — clear a non-critical-review failure/manual pause.
 
+## Reviewer configuration
+
+Configure the `guardian-bundle` row in the profile's `cordis.patch.yml`. No
+configuration preserves the existing Codex defaults:
+
+```yaml
+- id: guardian-bundle
+  config:
+    reviewer: codex
+    binary: codex
+    args: [app-server, --stdio]
+    models:
+      luna: { model: gpt-5.6-luna, effort: medium }
+      sol: { model: gpt-5.6-sol, effort: max }
+```
+
+Claude Code uses print mode with JSON-schema output, `plan` permission mode,
+safe mode, and an empty tool set. Set Claude-supported model names explicitly:
+
+```yaml
+- id: guardian-bundle
+  config:
+    reviewer: claude-code
+    claudeBinary: claude
+    claudeArgs: []
+    models:
+      luna: { model: haiku, effort: medium }
+      sol: { model: opus, effort: max }
+```
+
+The DSH backend routes directly through a registered provider. A per-role
+`provider` overrides `dshProvider` when summary and audit use different routes:
+
+```yaml
+- id: guardian-bundle
+  config:
+    reviewer: dsh
+    dshProvider: deepseek-official
+    dshMaxTokens: 4096
+    models:
+      luna: { model: deepseek-v4-flash, effort: off }
+      sol: { model: deepseek-v4-flash, effort: high }
+```
+
+Changing `reviewer` does not translate model names. Guardian fails loudly if
+the selected backend does not support a configured model; it never silently
+substitutes an audit model.
+
 ## Behavior
 
 - **Cadence**: the first audit requires at least two steps and 60 seconds;
@@ -71,7 +125,7 @@ browser half (`dsh.client`) renders the guardian strip in the composer dock.
   `skill` loader, and loads `cordis-plugin-development` only for plugin or
   model-facing-tool work. The original task resumes only after the repair audit
   is no longer critical.
-- **Three consecutive failures** (codex unreachable, timeouts, malformed
+- **Three consecutive failures** (reviewer unreachable, timeouts, malformed
   replies) pause the session with reason `failures`.
 - **Every 5 rounds** a full objective-alignment audit runs (objective +
   boundary rules + recent summaries).
@@ -115,11 +169,10 @@ npm run pack:check  # npm pack --dry-run
 
 `scripts/build-preset.mjs` regenerates `presets/guardian/agent.cordis.yml`
 from the shipped `code` + `cordis` compositions (checked-in result, so the
-package works standalone). Tests use `test/fixtures/fake-codex.mjs` — no real
-Codex login is required. The Codex models are config, not constants:
-```jsonc
-{ "models": { "luna": { "model": "gpt-5.6-luna", "effort": "medium" }, "sol": { "model": "gpt-5.6-sol", "effort": "max" } } }
-```
+package works standalone). Tests use `test/fixtures/fake-codex.mjs` and
+`fake-claude.mjs`; no real reviewer login is required. Backend, models, effort,
+binaries, CLI arguments, DSH provider route, timeout, and DSH output limit are
+configuration rather than constants.
 
 ## Compatibility
 

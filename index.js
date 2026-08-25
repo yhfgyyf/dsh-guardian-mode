@@ -7,7 +7,7 @@ import { registerGuardianApi } from './lib/api.js'
 /** Stable Cordis plugin identity. */
 export const name = 'dsh-guardian-mode'
 
-export const inject = ['agentPresets', 'agents', 'sessionPersistence']
+export const inject = ['agentPresets', 'agents', 'sessionPersistence', 'llm']
 export const Config = ServiceConfig
 
 /**
@@ -31,4 +31,5 @@ export { GuardianService } from './lib/service.js'
 export { extractJson, coerceVerdict, BOUNDARY_RULES, GuardianEngine } from './lib/engine.js'
 export { sidecarRoot, sidecarPath, SidecarStore } from './lib/sidecar.js'
 export { CodexClient, CodexError } from './lib/codex.js'
+export { ClaudeCodeClient, DshReviewerClient, ReviewerError, REVIEWER_TYPES, REVIEWER_DEFAULTS, resolveReviewerOptions, createReviewerCompanion } from './lib/reviewer.js'
 export { GUARDIAN_SERVICE, GUARDIAN_API_BASE, GUARDIAN_DOCK_ORDER, GUARDIAN_SLOT, GUARDIAN_DOCK_ID } from './lib/invariant.js'

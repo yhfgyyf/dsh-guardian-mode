@@ -159,3 +159,33 @@ test('every fifth audit includes full objective alignment', async () => {
     assert.match(fifth, /FULL OBJECTIVE:\nobjective-x/)
   })
 })
+
+test('stateless DSH-style reviewers receive the objective on every audit', async () => {
+  await fixture(async ({ engine, calls }) => {
+    engine.companion.persistent = false
+    await engine.attach('s1')
+    await engine.audit('s1', events, { objective: 'keep this exact objective', reason: 'manual', force: true })
+    await engine.audit('s1', events, { objective: 'keep this exact objective', reason: 'manual', force: true })
+    const secondLuna = calls.filter(([role]) => role === 'luna')[1][1]
+    const secondSol = calls.filter(([role]) => role === 'sol')[1][1]
+    assert.match(secondLuna, /CURRENT OBJECTIVE CONTEXT:\nkeep this exact objective/)
+    assert.match(secondSol, /FULL OBJECTIVE:\nkeep this exact objective/)
+  })
+})
+
+test('changing reviewer backends resets incompatible persisted handles', async () => {
+  await fixture(async ({ engine, store, calls }) => {
+    await store.save('s1', {
+      ...await store.load('s1'),
+      reviewer: 'claude-code',
+      threads: { luna: 'claude-luna', sol: 'claude-sol' },
+      audits: [],
+      summaries: []
+    })
+    await engine.attach('s1')
+    const state = await engine.get('s1')
+    assert.equal(state.reviewer, 'codex')
+    assert.deepEqual(state.threads, { luna: 'luna-thread', sol: 'sol-thread' })
+    assert.deepEqual(calls[0], ['ensure', { parentThreads: undefined }])
+  })
+})
