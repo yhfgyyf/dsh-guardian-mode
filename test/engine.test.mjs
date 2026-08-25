@@ -150,6 +150,16 @@ test('final audit failure is explicitly unverified', async () => {
   }, { failRole: 'sol' })
 })
 
+test('malformed audit replies remain available in the sidecar for diagnosis', async () => {
+  await fixture(async ({ engine }) => {
+    engine.companion.runAudit = async () => ({ text: '{"unexpected":true}' })
+    await engine.attach('s1')
+    const result = await engine.audit('s1', events, { reason: 'manual', force: true })
+    assert.equal(result.audit.errorCode, 'SOL_FAILED')
+    assert.equal(result.audit.rawOutput, '{"unexpected":true}')
+  })
+})
+
 test('every fifth audit includes full objective alignment', async () => {
   await fixture(async ({ engine, calls }) => {
     await engine.attach('s1')

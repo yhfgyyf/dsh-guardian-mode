@@ -86,7 +86,7 @@ test('DSH reviewer calls the host LLM directly with no model-facing tools', asyn
       requests.push(request)
       const audit = request.system.includes('independent, read-only reviewer')
       const text = audit
-        ? '{"verdict":"pass","summary":"dsh reviewed","findings":[]}'
+        ? '{"type":"object","required":["verdict"]}\n{"verdict":"pass","summary":"dsh reviewed","findings":[]}'
         : '{"intent":"test","progress":"dsh summarized","evidence":[],"risks":[],"next":[]}'
       yield { type: 'block-end', index: 0, block: { type: 'text', text } }
       yield { type: 'finish', reason: { kind: 'stop' } }
@@ -105,12 +105,14 @@ test('DSH reviewer calls the host LLM directly with no model-facing tools', asyn
   assert.equal(companion.persistent, false)
   const state = { sessionId: 'dsh-session', threads: {} }
   await companion.ensureThreads(state)
-  await companion.runSummary(state, 'trace', { type: 'object' })
-  await companion.runAudit(state, 'audit', { type: 'object' })
+  await companion.runSummary(state, 'trace', { type: 'object', required: ['intent'] })
+  const audit = await companion.runAudit(state, 'audit', { type: 'object', required: ['verdict'] })
   assert.equal(requests[0].provider, 'fast-route')
   assert.equal(requests[0].model, 'fast-model')
   assert.deepEqual(requests[0].tools, [])
   assert.equal(requests[1].provider, 'default-route')
   assert.equal(requests[1].model, 'audit-model')
   assert.deepEqual(requests[1].tools, [])
+  assert.deepEqual(JSON.parse(audit.text), { verdict: 'pass', summary: 'dsh reviewed', findings: [] })
+  assert.match(audit.rawText, /"type":"object"/)
 })
