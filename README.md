@@ -20,7 +20,8 @@ reviewer backend is configurable as **Codex**, **Claude Code**, or the host
 Codex and Claude Code keep separate persistent role sessions. The DSH backend
 uses direct, tool-free `llm.stream()` calls instead of starting another DSH
 Agent, so it cannot recursively enter Guardian mode. Those calls are stateless,
-so Guardian includes the current objective in every DSH review.
+so Guardian includes the current objective and a bounded tail of sidecar review
+memory in every DSH audit.
 
 All unaccepted feedback and reviewer state is written to a **sidecar**
 (`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`). Only explicit human

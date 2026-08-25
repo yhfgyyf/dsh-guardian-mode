@@ -16,7 +16,8 @@ runtime**。默认仍是一个持久 Codex app-server：
 
 Codex 与 Claude Code 为两个角色维护独立持久会话。DSH 后端直接执行无工具的
 `llm.stream()`，不会再创建 DSH Agent，因此不会递归进入 Guardian；该调用本身
-无状态，所以 Guardian 会在每次 DSH 审核时带上当前任务目标。
+无状态，所以 Guardian 会在每次 DSH 审核时带上当前任务目标和 sidecar 中有界的
+近期 reviewer memory。
 
 所有未批准审计反馈和 reviewer 状态写入**独立 sidecar**
 （`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`）。只有用户明确

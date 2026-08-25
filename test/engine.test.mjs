@@ -180,6 +180,8 @@ test('stateless DSH-style reviewers receive the objective on every audit', async
     const secondSol = calls.filter(([role]) => role === 'sol')[1][1]
     assert.match(secondLuna, /CURRENT OBJECTIVE CONTEXT:\nkeep this exact objective/)
     assert.match(secondSol, /FULL OBJECTIVE:\nkeep this exact objective/)
+    assert.match(secondSol, /PERSISTED PRIOR REVIEW CONTEXT/)
+    assert.match(secondSol, /"progress":"implemented"/)
   })
 })
 
