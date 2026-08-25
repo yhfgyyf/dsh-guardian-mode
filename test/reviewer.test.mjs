@@ -12,21 +12,21 @@ import {
 
 const fakeClaude = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-claude.mjs')
 const models = {
-  luna: { model: 'claude-haiku-4-5', effort: 'medium' },
-  sol: { model: 'claude-opus-4-6', effort: 'max' }
+  summarizer: { model: 'claude-haiku-4-5', effort: 'medium' },
+  auditor: { model: 'claude-opus-4-6', effort: 'max' }
 }
 
-test('reviewer config defaults to the existing Codex Luna/Sol pair', () => {
+test('reviewer config defaults to role-based Codex models', () => {
   const options = resolveReviewerOptions()
   assert.equal(options.type, 'codex')
   assert.equal(options.binary, 'codex')
   assert.deepEqual(options.models, {
-    luna: { model: 'gpt-5.6-luna', effort: 'medium' },
-    sol: { model: 'gpt-5.6-sol', effort: 'max' }
+    summarizer: { model: 'gpt-5.6-luna', effort: 'medium' },
+    auditor: { model: 'gpt-5.6-sol', effort: 'max' }
   })
 })
 
-test('reviewer config preserves old Codex fields and accepts DSH provider overrides', () => {
+test('reviewer config migrates legacy role fields and accepts DSH provider overrides', () => {
   const options = resolveReviewerOptions({
     reviewer: 'dsh',
     binary: '/custom/codex',
@@ -38,8 +38,8 @@ test('reviewer config preserves old Codex fields and accepts DSH provider overri
   assert.equal(options.binary, '/custom/codex')
   assert.deepEqual(options.args, ['server'])
   assert.equal(options.dshProvider, 'private-route')
-  assert.equal(options.models.luna.provider, 'fast-route')
-  assert.equal(options.models.sol.provider, undefined)
+  assert.equal(options.models.summarizer.provider, 'fast-route')
+  assert.equal(options.models.auditor.provider, undefined)
 })
 
 test('Claude Code reviewer uses safe print mode and persistent role sessions', async () => {
@@ -61,11 +61,11 @@ test('Claude Code child sessions fork the parent reviewer history handle lazily'
   const client = new ClaudeCodeClient({ binary: process.execPath, args: [fakeClaude], requestTimeoutMs: 2000 })
   const companion = new CodexCompanion(client, { models, cwd: '/tmp' })
   const child = { sessionId: 'child', threads: {} }
-  await companion.ensureThreads(child, { parentThreads: { luna: 'parent-luna', sol: 'parent-sol' } })
-  const pending = child.threads.luna
+  await companion.ensureThreads(child, { parentThreads: { summarizer: 'parent-summary', auditor: 'parent-audit' } })
+  const pending = child.threads.summarizer
   await companion.runSummary(child, 'trace', { type: 'object', properties: { progress: { type: 'string' } } })
-  assert.notEqual(child.threads.luna, pending)
-  assert.equal(child.threads.luna, 'forked-parent-luna')
+  assert.notEqual(child.threads.summarizer, pending)
+  assert.equal(child.threads.summarizer, 'forked-parent-summary')
 })
 
 test('Claude Code reviewer rejects arguments that could bypass its fixed isolation', () => {
@@ -97,8 +97,8 @@ test('DSH reviewer calls the host LLM directly with no model-facing tools', asyn
     dshProvider: 'default-route',
     requestTimeoutMs: 2000,
     models: {
-      luna: { provider: 'fast-route', model: 'fast-model', effort: 'off' },
-      sol: { model: 'audit-model', effort: 'high' }
+      summarizer: { provider: 'fast-route', model: 'fast-model', effort: 'off' },
+      auditor: { model: 'audit-model', effort: 'high' }
     }
   }, { cwd: '/tmp' })
   assert.equal(companion.client instanceof DshReviewerClient, true)

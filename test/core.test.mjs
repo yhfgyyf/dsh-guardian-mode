@@ -57,10 +57,10 @@ test('pass continues, warning continues, critical pauses', () => {
 
 test('third consecutive reviewer failure pauses and resume clears it', () => {
   const state = emptyState('s1', 0)
-  applyOutcome(state, { errorCode: 'LUNA_FAILED' })
-  applyOutcome(state, { errorCode: 'LUNA_FAILED' })
+  applyOutcome(state, { errorCode: 'SUMMARIZER_FAILED' })
+  applyOutcome(state, { errorCode: 'SUMMARIZER_FAILED' })
   assert.equal(state.paused, false)
-  applyOutcome(state, { errorCode: 'LUNA_FAILED' })
+  applyOutcome(state, { errorCode: 'SUMMARIZER_FAILED' })
   assert.equal(state.pauseReason, 'failures')
   assert.equal(resume(state), true)
   assert.equal(state.paused, false)
@@ -109,7 +109,7 @@ test('stale approval is rejected and verification infrastructure failure fails c
   acceptPendingApproval(state, 'audit-1', 20)
   markRemediationRunning(state, 30)
   markRemediationVerifying(state, 40)
-  assert.equal(settleRemediation(state, { id: 'verify', errorCode: 'SOL_FAILED' }, 50), false)
+  assert.equal(settleRemediation(state, { id: 'verify', errorCode: 'AUDITOR_FAILED' }, 50), false)
   assert.equal(state.status, 'remediation-verification-failed')
   assert.equal(state.paused, true)
 })

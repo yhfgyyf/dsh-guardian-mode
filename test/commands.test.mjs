@@ -18,12 +18,14 @@ test('renderStatus shows capability, reviewer ids, pause, and feedback', () => {
   const out = renderStatus({
     active: true, capability: GUARDIAN_CAPABILITY, status: 'paused', completedSteps: 5, regularAuditCount: 2,
     lastVerdict: 'warning', paused: true, pauseReason: 'safety', failureCount: 0,
-    summaryCount: 5, auditCount: 2, traceCursor: 9, threads: { luna: 'luna-1', sol: 'sol-1' },
+    summaryCount: 5, auditCount: 2, traceCursor: 9, threads: { summarizer: 'summary-1', auditor: 'audit-1' },
+    models: { summarizer: 'fast-model', auditor: 'strong-model' },
     lastAudit: { summary: 'reviewed', findings: [{ recommendation: 'fix it' }] }, finalAudit: undefined
   })
   assert.match(out, /Capability: guardian/)
   assert.match(out, /Steps: 5/)
-  assert.match(out, /luna=luna-1/)
+  assert.match(out, /summarizer=summary-1/)
+  assert.match(out, /auditor=strong-model/)
   assert.match(out, /warning/)
   assert.match(out, /Pause: safety/)
   assert.match(out, /fix it/)

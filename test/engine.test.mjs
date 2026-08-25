@@ -11,20 +11,20 @@ async function fixture (fn, options = {}) {
   let now = 0
   const calls = []
   const companion = {
-    models: { luna: { model: 'gpt-5.6-luna', effort: 'medium' }, sol: { model: 'gpt-5.6-sol', effort: 'max' } },
+    models: { summarizer: { model: 'gpt-5.6-luna', effort: 'medium' }, auditor: { model: 'gpt-5.6-sol', effort: 'max' } },
     async ensureThreads (state, args) {
       calls.push(['ensure', args])
-      state.threads.luna = state.threads.luna ?? 'luna-thread'
-      state.threads.sol = state.threads.sol ?? 'sol-thread'
+      state.threads.summarizer = state.threads.summarizer ?? 'summary-thread'
+      state.threads.auditor = state.threads.auditor ?? 'audit-thread'
     },
     async runSummary (_state, prompt) {
-      calls.push(['luna', prompt])
-      if (options.failRole === 'luna') throw new Error('luna unavailable')
+      calls.push(['summarizer', prompt])
+      if (options.failRole === 'summarizer') throw new Error('summarizer unavailable')
       return { text: '{"intent":"fix","progress":"implemented","evidence":["tests"],"risks":[],"next":["verify"]}' }
     },
     async runAudit (_state, prompt) {
-      calls.push(['sol', prompt])
-      if (options.failRole === 'sol') throw new Error('sol unavailable')
+      calls.push(['auditor', prompt])
+      if (options.failRole === 'auditor') throw new Error('auditor unavailable')
       return { text: JSON.stringify({ verdict: options.verdict ?? 'pass', summary: 'reviewed', findings: options.findings ?? [] }) }
     },
     async archive () { calls.push(['archive']) },
@@ -43,14 +43,14 @@ const events = [
   { seq: 3, type: 'step/end', data: { turn: 1, step: 1 } }
 ]
 
-test('Luna summary and Sol audit use independent persistent threads', async () => {
+test('summarizer and auditor use independent persistent threads', async () => {
   await fixture(async ({ engine, calls }) => {
     await engine.attach('s1')
     const result = await engine.audit('s1', events, { objective: 'fix tests', reason: 'manual', force: true })
     assert.equal(result.audit.verdict, 'pass')
-    assert.equal(result.audit.threads.luna, 'luna-thread')
-    assert.equal(result.audit.threads.sol, 'sol-thread')
-    assert.deepEqual(calls.filter(([role]) => role === 'luna' || role === 'sol').map(([role]) => role), ['luna', 'sol'])
+    assert.equal(result.audit.threads.summarizer, 'summary-thread')
+    assert.equal(result.audit.threads.auditor, 'audit-thread')
+    assert.deepEqual(calls.filter(([role]) => role === 'summarizer' || role === 'auditor').map(([role]) => role), ['summarizer', 'auditor'])
     assert.equal(result.state.traceCursor, 3)
   })
 })
@@ -61,10 +61,10 @@ test('auto, manual, and final audit prompts respect approval-gated verdict isola
     await engine.audit('s1', events, { objective: 'verify evidence', reason: 'auto', force: true })
     await engine.audit('s1', events, { objective: 'verify evidence', reason: 'manual', force: true })
     await engine.audit('s1', events, { objective: 'verify evidence', reason: 'final', final: true, force: true })
-    const lunaPrompts = calls.filter(([role]) => role === 'luna').map(([, prompt]) => prompt)
-    const solPrompts = calls.filter(([role]) => role === 'sol').map(([, prompt]) => prompt)
+    const summaryPrompts = calls.filter(([role]) => role === 'summarizer').map(([, prompt]) => prompt)
+    const auditPrompts = calls.filter(([role]) => role === 'auditor').map(([, prompt]) => prompt)
     for (const [index, kind] of ['auto', 'manual', 'final'].entries()) {
-      for (const prompt of [lunaPrompts[index], solPrompts[index]]) {
+      for (const prompt of [summaryPrompts[index], auditPrompts[index]]) {
         assert.match(prompt, new RegExp(`active ${kind} audit triggered after trace capture`))
         assert.match(prompt, /Unaccepted Guardian verdicts and feedback are sidecar\/UI-only/)
         assert.match(prompt, /only inside a <guardian-remediation> tail message after explicit user acceptance/)
@@ -81,7 +81,7 @@ test('incremental trace advances cursor and does not mutate main session events'
     await engine.audit('s1', events, { reason: 'manual', force: true })
     const later = [...events, { seq: 4, type: 'step/end', data: { turn: 1, step: 2 } }]
     await engine.audit('s1', later, { reason: 'manual', force: true })
-    const secondPrompt = calls.filter(([role]) => role === 'luna')[1][1]
+    const secondPrompt = calls.filter(([role]) => role === 'summarizer')[1][1]
     assert.doesNotMatch(secondPrompt, /"seq":1/)
     assert.match(secondPrompt, /"seq":4/)
     assert.deepEqual(events, original)
@@ -136,9 +136,9 @@ test('three consecutive infrastructure failures pause without model fallback', a
     const view = await engine.snapshot('s1')
     assert.equal(view.paused, true)
     assert.equal(view.pauseReason, 'failures')
-    assert.match(view.lastAudit.errorCode, /^LUNA_/)
-    assert.equal(view.lastAudit.models.luna, 'gpt-5.6-luna')
-  }, { failRole: 'luna' })
+    assert.match(view.lastAudit.errorCode, /^SUMMARIZER_/)
+    assert.equal(view.lastAudit.models.summarizer, 'gpt-5.6-luna')
+  }, { failRole: 'summarizer' })
 })
 
 test('final audit failure is explicitly unverified', async () => {
@@ -146,8 +146,8 @@ test('final audit failure is explicitly unverified', async () => {
     await engine.attach('s1')
     const result = await engine.audit('s1', events, { reason: 'final', final: true, force: true })
     assert.equal(result.state.finalAudit.verified, false)
-    assert.match(result.state.finalAudit.errorCode, /^SOL_/)
-  }, { failRole: 'sol' })
+    assert.match(result.state.finalAudit.errorCode, /^AUDITOR_/)
+  }, { failRole: 'auditor' })
 })
 
 test('malformed audit replies remain available in the sidecar for diagnosis', async () => {
@@ -155,7 +155,7 @@ test('malformed audit replies remain available in the sidecar for diagnosis', as
     engine.companion.runAudit = async () => ({ text: '{"unexpected":true}' })
     await engine.attach('s1')
     const result = await engine.audit('s1', events, { reason: 'manual', force: true })
-    assert.equal(result.audit.errorCode, 'SOL_FAILED')
+    assert.equal(result.audit.errorCode, 'AUDITOR_FAILED')
     assert.equal(result.audit.rawOutput, '{"unexpected":true}')
   })
 })
@@ -164,7 +164,7 @@ test('every fifth audit includes full objective alignment', async () => {
   await fixture(async ({ engine, calls }) => {
     await engine.attach('s1')
     for (let index = 0; index < 5; index++) await engine.audit('s1', events, { objective: 'objective-x', reason: 'manual', force: true })
-    const fifth = calls.filter(([role]) => role === 'sol')[4][1]
+    const fifth = calls.filter(([role]) => role === 'auditor')[4][1]
     assert.match(fifth, /Full alignment: true/)
     assert.match(fifth, /FULL OBJECTIVE:\nobjective-x/)
   })
@@ -176,12 +176,12 @@ test('stateless DSH-style reviewers receive the objective on every audit', async
     await engine.attach('s1')
     await engine.audit('s1', events, { objective: 'keep this exact objective', reason: 'manual', force: true })
     await engine.audit('s1', events, { objective: 'keep this exact objective', reason: 'manual', force: true })
-    const secondLuna = calls.filter(([role]) => role === 'luna')[1][1]
-    const secondSol = calls.filter(([role]) => role === 'sol')[1][1]
-    assert.match(secondLuna, /CURRENT OBJECTIVE CONTEXT:\nkeep this exact objective/)
-    assert.match(secondSol, /FULL OBJECTIVE:\nkeep this exact objective/)
-    assert.match(secondSol, /PERSISTED PRIOR REVIEW CONTEXT/)
-    assert.match(secondSol, /"progress":"implemented"/)
+    const secondSummary = calls.filter(([role]) => role === 'summarizer')[1][1]
+    const secondAudit = calls.filter(([role]) => role === 'auditor')[1][1]
+    assert.match(secondSummary, /CURRENT OBJECTIVE CONTEXT:\nkeep this exact objective/)
+    assert.match(secondAudit, /FULL OBJECTIVE:\nkeep this exact objective/)
+    assert.match(secondAudit, /PERSISTED PRIOR REVIEW CONTEXT/)
+    assert.match(secondAudit, /"progress":"implemented"/)
   })
 })
 
@@ -197,7 +197,23 @@ test('changing reviewer backends resets incompatible persisted handles', async (
     await engine.attach('s1')
     const state = await engine.get('s1')
     assert.equal(state.reviewer, 'codex')
-    assert.deepEqual(state.threads, { luna: 'luna-thread', sol: 'sol-thread' })
+    assert.deepEqual(state.threads, { summarizer: 'summary-thread', auditor: 'audit-thread' })
+    assert.deepEqual(calls[0], ['ensure', { parentThreads: undefined }])
+  })
+})
+
+test('legacy Luna/Sol sidecar handles migrate without losing reviewer history', async () => {
+  await fixture(async ({ engine, store, calls }) => {
+    await store.save('s1', {
+      ...await store.load('s1'),
+      reviewer: 'codex',
+      threads: { luna: 'legacy-summary', sol: 'legacy-audit' },
+      audits: [],
+      summaries: []
+    })
+    await engine.attach('s1')
+    const state = await engine.get('s1')
+    assert.deepEqual(state.threads, { summarizer: 'legacy-summary', auditor: 'legacy-audit' })
     assert.deepEqual(calls[0], ['ensure', { parentThreads: undefined }])
   })
 })

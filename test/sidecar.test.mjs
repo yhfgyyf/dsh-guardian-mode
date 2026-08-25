@@ -42,13 +42,13 @@ test('fork clone keeps history but resets thread ids and pause state', async () 
   await store.save('parent', {
     paused: true,
     pauseReason: 'safety',
-    threads: { luna: 'luna-parent', sol: 'sol-parent' },
+    threads: { luna: 'legacy-summary-parent', sol: 'legacy-audit-parent' },
     audits: [{ id: 'audit-1', verdict: 'pass' }],
     summaries: []
   })
   const child = await store.clone('parent', 'child', 10)
   assert.equal(child.paused, false)
-  assert.deepEqual(child.threads, { luna: undefined, sol: undefined })
+  assert.deepEqual(child.threads, { summarizer: undefined, auditor: undefined })
   assert.equal(child.audits.length, 1)
   assert.equal(child.pendingApproval, undefined)
   assert.equal(child.remediation, undefined)

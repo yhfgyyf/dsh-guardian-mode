@@ -14,8 +14,8 @@ reviewer backend is configurable as **Codex**, **Claude Code**, or the host
 
 | Role | Default model | Effort | Job |
 | --- | --- | --- | --- |
-| luna | `gpt-5.6-luna` | medium | incremental trace summary per round |
-| sol | `gpt-5.6-sol` | max | independent audit → `pass` / `warning` / `critical` |
+| summarizer | `gpt-5.6-luna` | medium | incremental trace summary per round |
+| auditor | `gpt-5.6-sol` | max | independent audit → `pass` / `warning` / `critical` |
 
 Codex and Claude Code keep separate persistent role sessions. The DSH backend
 uses direct, tool-free `llm.stream()` calls instead of starting another DSH
@@ -76,9 +76,13 @@ configuration preserves the existing Codex defaults:
     binary: codex
     args: [app-server, --stdio]
     models:
-      luna: { model: gpt-5.6-luna, effort: medium }
-      sol: { model: gpt-5.6-sol, effort: max }
+      summarizer: { model: gpt-5.6-luna, effort: medium }
+      auditor: { model: gpt-5.6-sol, effort: max }
 ```
+
+`summarizer` and `auditor` are stable, responsibility-based keys; their model
+names remain fully configurable. Legacy `luna` / `sol` keys are still accepted
+and are migrated to the new names at runtime.
 
 Claude Code uses print mode with JSON-schema output, `plan` permission mode,
 safe mode, and an empty tool set. Set Claude-supported model names explicitly:
@@ -90,8 +94,8 @@ safe mode, and an empty tool set. Set Claude-supported model names explicitly:
     claudeBinary: claude
     claudeArgs: []
     models:
-      luna: { model: haiku, effort: medium }
-      sol: { model: opus, effort: max }
+      summarizer: { model: haiku, effort: medium }
+      auditor: { model: opus, effort: max }
 ```
 
 The DSH backend routes directly through a registered provider. A per-role
@@ -104,8 +108,8 @@ The DSH backend routes directly through a registered provider. A per-role
     dshProvider: deepseek-official
     dshMaxTokens: 4096
     models:
-      luna: { model: deepseek-v4-flash, effort: off }
-      sol: { model: deepseek-v4-flash, effort: high }
+      summarizer: { model: deepseek-v4-flash, effort: off }
+      auditor: { model: deepseek-v4-flash, effort: high }
 ```
 
 Changing `reviewer` does not translate model names. Guardian fails loudly if

@@ -1,4 +1,4 @@
 name: 守护模式
-description: 组合 PTC/code 与 Cordis 能力；Luna 增量总结 trace，Sol 持久线程独立审计。反馈只进入 Guardian sidecar 与 UI，不进入主会话上下文。
+description: 组合 PTC/code 与 Cordis 能力；summarizer 增量总结 trace，auditor 独立审计。反馈只进入 Guardian sidecar 与 UI，不进入主会话上下文。
 order: 5
 capability: guardian

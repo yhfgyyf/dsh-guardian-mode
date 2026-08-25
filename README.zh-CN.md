@@ -11,8 +11,8 @@ runtime**。默认仍是一个持久 Codex app-server：
 
 | 角色 | 默认模型 | Effort | 职责 |
 | --- | --- | --- | --- |
-| luna | `gpt-5.6-luna` | medium | 每轮增量 trace 总结 |
-| sol | `gpt-5.6-sol` | max | 独立审计 → `pass` / `warning` / `critical` |
+| summarizer | `gpt-5.6-luna` | medium | 每轮增量 trace 总结 |
+| auditor | `gpt-5.6-sol` | max | 独立审计 → `pass` / `warning` / `critical` |
 
 Codex 与 Claude Code 为两个角色维护独立持久会话。DSH 后端直接执行无工具的
 `llm.stream()`，不会再创建 DSH Agent，因此不会递归进入 Guardian；该调用本身
@@ -69,9 +69,12 @@ dock 里的 guardian 条。
     binary: codex
     args: [app-server, --stdio]
     models:
-      luna: { model: gpt-5.6-luna, effort: medium }
-      sol: { model: gpt-5.6-sol, effort: max }
+      summarizer: { model: gpt-5.6-luna, effort: medium }
+      auditor: { model: gpt-5.6-sol, effort: max }
 ```
+
+`summarizer` 和 `auditor` 是按职责命名的稳定字段，模型名称可以任意配置。旧版
+`luna` / `sol` 字段仍可读取，并会在运行时迁移为新名称。
 
 Claude Code 使用 print + JSON schema、`plan` 权限模式、safe mode，并清空
 model-facing tools；模型名需明确填写为 Claude Code 支持的名称：
@@ -83,8 +86,8 @@ model-facing tools；模型名需明确填写为 Claude Code 支持的名称：
     claudeBinary: claude
     claudeArgs: []
     models:
-      luna: { model: haiku, effort: medium }
-      sol: { model: opus, effort: max }
+      summarizer: { model: haiku, effort: medium }
+      auditor: { model: opus, effort: max }
 ```
 
 DSH 后端直接使用已注册 provider。若总结和审计模型位于不同路由，可在角色内用
@@ -97,8 +100,8 @@ DSH 后端直接使用已注册 provider。若总结和审计模型位于不同�
     dshProvider: deepseek-official
     dshMaxTokens: 4096
     models:
-      luna: { model: deepseek-v4-flash, effort: off }
-      sol: { model: deepseek-v4-flash, effort: high }
+      summarizer: { model: deepseek-v4-flash, effort: off }
+      auditor: { model: deepseek-v4-flash, effort: high }
 ```
 
 切换 `reviewer` 不会自动翻译模型名。若目标后端不支持所配模型，Guardian 会明确
