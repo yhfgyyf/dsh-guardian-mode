@@ -267,13 +267,15 @@
 
 # ── presentation ────────────────────────────────────────────────────────────
 
-# Code Mode for this agent alone. The row waits for the host's `codeRuntime`
+# PTC/Code Mode for this agent alone. The row waits for the host's `codeRuntime`
 # rather than assuming it: a deployment that composes no TypeScript runtime
 # fails this preset at mount, naming this id, instead of at the first request.
+# DSH 0.1.2 renamed the presentation enum from `code` to `ptc`; inspect the
+# installed presenter so one plugin release remains compatible with rc.1/rc.2.
 - id: tool-presentation
   name: '@deepseek-ai/dsh-agent-tool-presentation'
   config:
-    mode: code
+    mode: !!js "process.getBuiltinModule('node:fs').readFileSync(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-tool-presentation'), 'utf8').includes('\"ptc\"') ? 'ptc' : 'code'"
 
 # ── self-modification ───────────────────────────────────────────────────────
 

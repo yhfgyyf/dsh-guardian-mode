@@ -23,7 +23,8 @@ test('preset.yml declares the guardian mode with order 5', () => {
 
 test('the guardian composition combines PTC presentation and the cordis toolset', () => {
   const composition = readFileSync(join(root, 'presets/guardian/agent.cordis.yml'), 'utf8')
-  assert.match(composition, /mode: code/, 'PTC presentation is present')
+  assert.match(composition, /mode: !!js/, 'presentation mode follows the installed DSH enum')
+  assert.match(composition, /'ptc' : 'code'/, 'alpha and rc presentation enums are supported')
   assert.match(composition, /tool-cordis/, 'cordis runtime toolset is present')
   assert.match(composition, /skill-filesystem/, 'skill discovery is present')
   assert.match(composition, /tool-skill/, 'skill tool is present')
