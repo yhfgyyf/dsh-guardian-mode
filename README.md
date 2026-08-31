@@ -121,11 +121,14 @@ substitutes an audit model.
 - **Cadence**: the first audit requires at least two steps and 60 seconds;
   later audits run every three steps or three minutes, with a 60-second minimum
   gap. Anomalies audit at the next safe boundary.
-- **Warning approval**: a warning leaves the main Agent running. Acceptance
-  cancels the current turn, appends the approved repair prompt, executes one
-  repair turn, and performs a fresh verification audit.
+- **Warning approval**: a warning leaves the main Agent running. The user may
+  execute the proposed repair as-is or edit it first. An accepted repair uses
+  DSH's native `next-step` steering path, so the current tool call finishes
+  before the edited instruction runs; an idle Agent runs it immediately.
 - **Critical approval**: critical pauses the main Agent and active Goal first.
-  Acceptance temporarily exposes Cordis tools and appends a capability lease.
+  The user may execute the proposed repair as-is or edit it first. Acceptance
+  immediately starts the repair turn, temporarily exposes Cordis tools, and
+  appends a capability lease.
   The repair Agent must load `editing-cordis-compositions` through the stable
   `skill` loader, and loads `cordis-plugin-development` only for plugin or
   model-facing-tool work. The original task resumes only after the repair audit
@@ -148,7 +151,7 @@ Third-party routes, declared by this package:
 | GET | `/api/guardian/snapshot` | `?session=<id>` |
 | GET | `/api/guardian/watch` | `?session=<id>` (SSE `event: guardian`) |
 | POST | `/api/guardian/request-now` | `{ sessionId, final? }` |
-| POST | `/api/guardian/accept` | `{ sessionId, auditId? }` |
+| POST | `/api/guardian/accept` | `{ sessionId, auditId?, editedText? }` |
 | POST | `/api/guardian/resume` | `{ sessionId }` |
 
 The Web dock strip registers at `conversation.input.dock` **order 5** —
@@ -159,7 +162,8 @@ rendered between the Todo strip (order 0) and the Goal strip (order 10).
 `dsh-tui-app` renders an independent color-coded block (pass=green,
 warning/critical/paused=red) beside the config row:
 
-- `a` — accept a pending remediation (empty composer only)
+- `a` — execute the proposed remediation unchanged
+- `e` — load it into the composer; Enter executes the edited text, Esc cancels
 - `c` — copy feedback while paused
 - `r` — resume a non-critical-review pause
 - `Esc` / `Ctrl+C` — stop current work

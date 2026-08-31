@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { emptyState } from '../lib/core.js'
 import { SidecarStore, sidecarPath, sidecarRoot } from '../lib/sidecar.js'
 
 test('sidecar round-trips state and never touches the session log', async () => {
@@ -23,6 +24,30 @@ test('sidecar round-trips state and never touches the session log', async () => 
   // sanitized sidecar file name for hostile ids
   assert.equal(sidecarPath('../evil', env).startsWith(sidecarRoot(env) + '/'), true)
   assert.equal(sidecarPath('../evil', env).split('/').pop().includes('/'), false)
+})
+
+test('legacy pending approvals gain an editable draft when loaded', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'guardian-sidecar-'))
+  const env = { DSH_HOME: dir }
+  const store = new SidecarStore({ env })
+  const state = emptyState('legacy-edit', 1)
+  state.lastAudit = {
+    id: 'audit-legacy',
+    verdict: 'warning',
+    summary: 'legacy summary',
+    findings: [{ message: 'legacy gap', recommendation: 'repair legacy gap' }]
+  }
+  state.pendingApproval = {
+    auditId: 'audit-legacy',
+    verdict: 'warning',
+    status: 'pending',
+    prompt: '<guardian-remediation>legacy</guardian-remediation>'
+  }
+  await store.save('legacy-edit', state)
+  const loaded = await new SidecarStore({ env }).load('legacy-edit')
+  assert.match(loaded.pendingApproval.editableText, /legacy summary/)
+  assert.match(loaded.pendingApproval.editableText, /repair legacy gap/)
+  await rm(dir, { recursive: true, force: true })
 })
 
 test('sidecar removal is best-effort', async () => {

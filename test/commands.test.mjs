@@ -29,6 +29,13 @@ test('renderStatus shows capability, reviewer ids, pause, and feedback', () => {
   assert.match(out, /warning/)
   assert.match(out, /Pause: safety/)
   assert.match(out, /fix it/)
+  const pending = renderStatus({
+    active: true, capability: GUARDIAN_CAPABILITY, status: 'warning', completedSteps: 5,
+    regularAuditCount: 2, lastVerdict: 'warning', paused: false, failureCount: 0,
+    summaryCount: 5, auditCount: 2, traceCursor: 9, threads: {}, finalAudit: undefined,
+    pendingApproval: { auditId: 'audit-warning', verdict: 'warning', status: 'pending' }
+  })
+  assert.match(pending, /Web\/TUI edit action/)
   const retry = renderStatus({
     active: true, capability: GUARDIAN_CAPABILITY, status: 'remediation-execution-failed', completedSteps: 5,
     regularAuditCount: 2, lastVerdict: 'critical', paused: true, pauseReason: 'remediation', failureCount: 0,

@@ -5,6 +5,7 @@ import {
   acceptPendingApproval,
   applyOutcome,
   auditDue,
+  dispatchRemediation,
   emptyState,
   failRemediationExecution,
   markRemediationRunning,
@@ -67,18 +68,22 @@ test('third consecutive reviewer failure pauses and resume clears it', () => {
   assert.equal(state.failureCount, 0)
 })
 
-test('warning approval is optional until accepted, then runs a paused repair round', () => {
+test('warning approval accepts edited text at the next tool boundary without pausing', () => {
   const state = emptyState('s1', 0)
   const audit = { id: 'audit-warning', sequence: 2, verdict: 'warning', summary: 'fix validation', findings: [{ message: 'gap', evidence: 'trace', recommendation: 'add the missing check' }] }
   applyOutcome(state, audit)
   setPendingApproval(state, audit, 10)
   assert.equal(state.paused, false)
   assert.equal(state.pendingApproval.status, 'pending')
+  assert.match(state.pendingApproval.editableText, /add the missing check/)
   assert.match(state.pendingApproval.prompt, /add the missing check/)
-  acceptPendingApproval(state, 'audit-warning', 20)
-  assert.equal(state.paused, true)
-  assert.equal(state.pauseReason, 'remediation')
+  acceptPendingApproval(state, 'audit-warning', 20, 'Run the focused validation check, then continue.')
+  assert.equal(state.paused, false)
   assert.equal(state.remediation.elevated, false)
+  assert.equal(state.remediation.delivery, 'next-step')
+  assert.equal(state.remediation.edited, true)
+  assert.match(state.remediation.prompt, /edited and accepted/)
+  assert.match(state.remediation.prompt, /Run the focused validation check/)
   assert.equal(markRemediationRunning(state, 30), true)
   assert.equal(markRemediationVerifying(state, 40), true)
   assert.equal(settleRemediation(state, { id: 'verify', verdict: 'pass' }, 50), true)
@@ -91,14 +96,45 @@ test('critical approval enables elevation and failed verification remains paused
   const audit = { id: 'audit-critical', sequence: 3, verdict: 'critical', summary: 'unsafe', findings: [] }
   applyOutcome(state, audit)
   setPendingApproval(state, audit, 10)
-  acceptPendingApproval(state, 'audit-critical', 20)
+  acceptPendingApproval(state, 'audit-critical', 20, 'Repair the unsafe dispatch immediately.')
   assert.equal(state.remediation.elevated, true)
+  assert.equal(state.remediation.delivery, 'next-turn')
+  assert.equal(state.paused, true)
   markRemediationRunning(state, 30)
   markRemediationVerifying(state, 40)
   assert.equal(settleRemediation(state, { id: 'verify', verdict: 'critical' }, 50), false)
   assert.equal(state.paused, true)
   assert.equal(state.pauseReason, 'safety')
   assert.equal(state.remediation.phase, 'failed')
+})
+
+test('an idle warning may be delivered as an immediate next turn', () => {
+  const state = emptyState('s1', 0)
+  const audit = { id: 'audit-idle-warning', sequence: 4, verdict: 'warning', summary: 'idle repair', findings: [] }
+  setPendingApproval(state, audit, 10)
+  acceptPendingApproval(state, audit.id, 20, undefined, 'next-turn')
+  assert.equal(state.remediation.delivery, 'next-turn')
+  assert.equal(state.paused, false)
+})
+
+test('warning steering waits for the current tool call while critical follows up immediately', () => {
+  const calls = []
+  const agent = {
+    steer: (message) => calls.push(['steer', message]),
+    followup: (message) => calls.push(['followup', message])
+  }
+  assert.equal(dispatchRemediation(agent, 'warning-message', 'next-step', () => calls.push(['halt'])), 'next-step')
+  assert.deepEqual(calls, [['steer', 'warning-message']])
+  assert.equal(dispatchRemediation(agent, 'critical-message', 'next-turn', () => calls.push(['halt'])), 'next-turn')
+  assert.deepEqual(calls.slice(1), [['halt'], ['followup', 'critical-message']])
+})
+
+test('empty or oversized edited remediation text is rejected', () => {
+  const state = emptyState('s1', 0)
+  const audit = { id: 'audit-edit', sequence: 5, verdict: 'warning', summary: 'edit me', findings: [] }
+  setPendingApproval(state, audit, 10)
+  assert.throws(() => acceptPendingApproval(state, audit.id, 20, '   '), /cannot be empty/)
+  assert.throws(() => acceptPendingApproval(state, audit.id, 20, 'x'.repeat(16_001)), /exceeds 16000/)
 })
 
 test('stale approval is rejected and verification infrastructure failure fails closed', () => {

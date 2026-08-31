@@ -108,7 +108,7 @@ test('request-now, accept, and resume handlers parse the body', async () => {
     history: async () => [],
     subscribe: () => () => {},
     requestNow: async (sessionId, opts) => { calls.push(['now', sessionId, opts]); return { ok: true } },
-    accept: async (sessionId, auditId) => { calls.push(['accept', sessionId, auditId]); return { ok: true } },
+    accept: async (sessionId, auditId, editedText) => { calls.push(['accept', sessionId, auditId, editedText]); return { ok: true } },
     resume: async (sessionId) => { calls.push(['resume', sessionId]); return { ok: true } }
   }
   registerGuardianApi(ctx, service)
@@ -130,9 +130,9 @@ test('request-now, accept, and resume handlers parse the body', async () => {
   const r1 = await handler(now, { sessionId: 'a', final: true })
   assert.equal(r1.status, 200)
   assert.deepEqual(calls[0], ['now', 'a', { reason: 'final', final: true }])
-  const accepted = await handler(accept, { sessionId: 'a', auditId: 'audit-1' })
+  const accepted = await handler(accept, { sessionId: 'a', auditId: 'audit-1', editedText: 'Use the narrower repair.' })
   assert.equal(accepted.status, 200)
-  assert.deepEqual(calls[1], ['accept', 'a', 'audit-1'])
+  assert.deepEqual(calls[1], ['accept', 'a', 'audit-1', 'Use the narrower repair.'])
   const r2 = await handler(resume, { sessionId: 'b' })
   assert.equal(r2.status, 200)
   assert.deepEqual(calls[2], ['resume', 'b'])

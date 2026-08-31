@@ -111,10 +111,12 @@ DSH 后端直接使用已注册 provider。若总结和审计模型位于不同�
 
 - **审计节奏**：第一次审计至少 2 个 step 且运行 60 秒；之后每 3 个
   step 或 3 分钟审计，最小间隔 60 秒；异常在下一个安全边界审计。
-- **warning 批准**：warning 出现后主 Agent 默认继续；只有用户 accept，
-  才会暂停当前主 Agent，追加已批准修复 prompt，执行并重新审计。
+- **warning 批准**：warning 出现后主 Agent 默认继续；用户可以直接执行审计
+  意见，也可以先编辑。批准后使用 DSH 原生 `next-step` steering，与 Codex
+  临时输入一致：当前 tool call 完成后执行编辑后的意见；Agent 空闲时立即执行。
 - **critical 批准**：critical 先暂停主 Agent 和活动 Goal。用户 accept 后，
-  临时开放专用 Cordis 工具并追加能力租约。修复 Agent 必须通过稳定的 `skill`
+  可直接执行或先编辑审计意见，随后立即启动修复，临时开放专用 Cordis 工具并
+  追加能力租约。修复 Agent 必须通过稳定的 `skill`
   loader 加载 `editing-cordis-compositions`；只有修改 plugin 或模型工具时才加载
   `cordis-plugin-development`。修复轮完成后强制验证审计；非 critical 才收回
   临时能力并恢复原任务。
@@ -132,7 +134,7 @@ DSH 后端直接使用已注册 provider。若总结和审计模型位于不同�
 | GET | `/api/guardian/snapshot` | `?session=<id>` |
 | GET | `/api/guardian/watch` | `?session=<id>`（SSE `event: guardian`） |
 | POST | `/api/guardian/request-now` | `{ sessionId, final? }` |
-| POST | `/api/guardian/accept` | `{ sessionId, auditId? }` |
+| POST | `/api/guardian/accept` | `{ sessionId, auditId?, editedText? }` |
 | POST | `/api/guardian/resume` | `{ sessionId }` |
 
 Web dock 注册在 `conversation.input.dock` **order 5**：显示在 Todo（order
@@ -142,7 +144,8 @@ Web dock 注册在 `conversation.input.dock` **order 5**：显示在 Todo（orde
 
 `dsh-tui-app` 在配置行旁显示独立彩色块（pass 绿，warning、critical 和暂停红）：
 
-- `a` — 接受待处理修复（空输入框时）
+- `a` — 原样执行待处理修复
+- `e` — 把意见载入输入框；编辑后 Enter 执行，Esc 取消
 - `c` — 暂停时复制审计意见
 - `r` — 恢复非 critical-review 暂停
 - `Esc` / `Ctrl+C` — 停止当前任务

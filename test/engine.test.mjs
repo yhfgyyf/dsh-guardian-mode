@@ -104,8 +104,11 @@ test('accepted audit persists remediation lifecycle without rewriting audit hist
   await fixture(async ({ engine }) => {
     await engine.attach('s1')
     const result = await engine.audit('s1', events, { reason: 'manual', force: true })
-    const accepted = await engine.accept('s1', result.audit.id)
+    const accepted = await engine.accept('s1', result.audit.id, 'Apply only the reviewed dispatch repair.', 'next-step')
     assert.equal(accepted.remediation.phase, 'queued')
+    assert.equal(accepted.remediation.instruction, 'Apply only the reviewed dispatch repair.')
+    assert.equal(accepted.remediation.delivery, 'next-step')
+    assert.equal(accepted.remediation.edited, true)
     assert.equal(accepted.auditCount, 1)
     await engine.remediationRunning('s1')
     await engine.remediationVerifying('s1')
