@@ -17,7 +17,7 @@ export const Config = ServiceConfig
  * as a new, bounded remediation message instead of rewriting prior history.
  */
 export function apply (ctx, config) {
-  const restoreRoster = installPresetRoot(ctx.agentPresets, discoverPresets, GUARDIAN_PRESET_ROOT, 'system')
+  const restoreRoster = installPresetRoot(ctx.agentPresets, discoverPresets, GUARDIAN_PRESET_ROOT, 'system', ctx.baseUrl)
   ctx.effect(() => restoreRoster, name + '.roster()')
 
   const service = new GuardianService(ctx, config)

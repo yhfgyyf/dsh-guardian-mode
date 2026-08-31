@@ -45,14 +45,17 @@ test('installPresetRoot extends the list seam and restores on dispose', async ()
   const originalList = async () => [{ id: 'standard' }]
   const agentPresets = { list: originalList }
   const seen = []
-  const discover = async (roots) => {
-    seen.push(roots)
+  const discover = async (roots, harnessBase) => {
+    seen.push({ roots, harnessBase })
     return [{ id: 'guardian' }]
   }
-  const dispose = installPresetRoot(agentPresets, discover, '/tmp/presets', 'user')
+  const dispose = installPresetRoot(agentPresets, discover, '/tmp/presets', 'user', 'file:///harness/')
   const listed = await agentPresets.list()
   assert.deepEqual(listed.map((p) => p.id), ['guardian', 'standard'])
-  assert.deepEqual(seen, [[{ path: '/tmp/presets', trust: 'user' }]])
+  assert.deepEqual(seen, [{
+    roots: [{ path: '/tmp/presets', trust: 'user' }],
+    harnessBase: 'file:///harness/'
+  }])
   dispose()
   assert.equal(agentPresets.list, originalList)
 })
