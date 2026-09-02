@@ -1,6 +1,6 @@
-# dsh-guardian-mode
+# dsh-audit-mode
 
-The **fifth mode** of DeepSeek Harness (DSH): preset id `guardian`, combining
+The **fifth mode** of DeepSeek Harness (DSH): preset id `audit`, combining
 PTC *code* presentation, independent review, and a human-approved Cordis
 remediation loop.
 
@@ -19,13 +19,13 @@ reviewer backend is configurable as **Codex**, **Claude Code**, or the host
 
 Codex and Claude Code keep separate persistent role sessions. The DSH backend
 uses direct, tool-free `llm.stream()` calls instead of starting another DSH
-Agent, so it cannot recursively enter Guardian mode. Those calls are stateless,
-so Guardian includes the current objective and a bounded tail of sidecar review
+Agent, so it cannot recursively enter Audit mode. Those calls are stateless,
+so Audit includes the current objective and a bounded tail of sidecar review
 memory in every DSH audit.
 
 All unaccepted feedback and reviewer state is written to a **sidecar**
-(`${DSH_HOME:-~/.dsh}/guardian/sidecars/<sessionId>.json`). Only explicit human
-acceptance appends a bounded `<guardian-remediation>` prompt and capability
+(`${DSH_HOME:-~/.dsh}/audit/sidecars/<sessionId>.json`). Only explicit human
+acceptance appends a bounded `<audit-remediation>` prompt and capability
 lease at the context tail. The model then loads the named skills through DSH's
 stable `skill` tool; prior messages are never rewritten and raw reviewer output
 remains private.
@@ -35,8 +35,8 @@ remains private.
 ```bash
 # in your dsh profile (profiles/web and profiles/tui use the same pattern)
 cd ~/.dsh/profiles/web
-pnpm add dsh-guardian-mode@github:yhfgyyf/dsh-guardian-mode
-# Recommended stable tool discovery for Guardian and Auto target presets:
+pnpm add dsh-audit-mode@github:yhfgyyf/dsh-audit-mode
+# Recommended stable tool discovery for Audit and Auto target presets:
 pnpm add dsh-progressive-tools@github:yhfgyyf/dsh-progressive-tools
 # add both bundles to package.json dsh.profile.bundles (both profiles),
 # then restart the profile.
@@ -46,31 +46,31 @@ The bundle patch adds one dual-face row:
 
 ```yaml
 - insert:
-    - id: guardian-bundle
-      name: dsh-guardian-mode
+    - id: audit-bundle
+      name: dsh-audit-mode
 ```
 
-The node half mounts the host `guardians` service, registers the `/guardian`
+The node half mounts the host `audits` service, registers the `/audit`
 command, and (when a webserver is present) the Remote API. The same row's
-browser half (`dsh.client`) renders the guardian strip in the composer dock.
+browser half (`dsh.client`) renders the audit strip in the composer dock.
 
 ## Using the mode
 
-- Start a session with `--preset guardian` (TUI) or pick **guardian** in the
-  Web preset chip, or `/preset guardian` on a blank session.
-- `/guardian status` — round, cadence interval, last verdict, pause state.
-- `/guardian now` — force an audit (out of cadence).
-- `/guardian history` — recent audits from the sidecar.
-- `/guardian accept [audit-id]` — approve the latest/specified remediation.
-- `/guardian resume` — clear a non-critical-review failure/manual pause.
+- Start a session with `--preset audit` (TUI) or pick **audit** in the
+  Web preset chip, or `/preset audit` on a blank session.
+- `/audit status` — round, cadence interval, last verdict, pause state.
+- `/audit now` — force an audit (out of cadence).
+- `/audit history` — recent audits from the sidecar.
+- `/audit accept [audit-id]` — approve the latest/specified remediation.
+- `/audit resume` — clear a non-critical-review failure/manual pause.
 
 ## Reviewer configuration
 
-Configure the `guardian-bundle` row in the profile's `cordis.patch.yml`. No
+Configure the `audit-bundle` row in the profile's `cordis.patch.yml`. No
 configuration preserves the existing Codex defaults:
 
 ```yaml
-- id: guardian-bundle
+- id: audit-bundle
   config:
     reviewer: codex
     binary: codex
@@ -88,7 +88,7 @@ Claude Code uses print mode with JSON-schema output, `plan` permission mode,
 safe mode, and an empty tool set. Set Claude-supported model names explicitly:
 
 ```yaml
-- id: guardian-bundle
+- id: audit-bundle
   config:
     reviewer: claude-code
     claudeBinary: claude
@@ -102,7 +102,7 @@ The DSH backend routes directly through a registered provider. A per-role
 `provider` overrides `dshProvider` when summary and audit use different routes:
 
 ```yaml
-- id: guardian-bundle
+- id: audit-bundle
   config:
     reviewer: dsh
     dshProvider: deepseek-official
@@ -112,7 +112,7 @@ The DSH backend routes directly through a registered provider. A per-role
       auditor: { model: deepseek-v4-flash, effort: high }
 ```
 
-Changing `reviewer` does not translate model names. Guardian fails loudly if
+Changing `reviewer` does not translate model names. Audit fails loudly if
 the selected backend does not support a configured model; it never silently
 substitutes an audit model.
 
@@ -137,9 +137,9 @@ substitutes an audit model.
   replies) pause the session with reason `failures`.
 - **Every 5 rounds** a full objective-alignment audit runs (objective +
   boundary rules + recent summaries).
-- **Final audit** runs when the session is disposed (or `/guardian now` with
+- **Final audit** runs when the session is disposed (or `/audit now` with
   the Remote API `final: true`).
-- **Fixed capability**: `guardian` (`GUARDIAN_CAPABILITY`). The auto router
+- **Fixed capability**: `audit` (`AUDIT_CAPABILITY`). The auto router
   keeps routing only standard / code / minimal / cordis.
 
 ## Remote API (browser)
@@ -148,11 +148,11 @@ Third-party routes, declared by this package:
 
 | Method | Path | Body / query |
 | --- | --- | --- |
-| GET | `/api/guardian/snapshot` | `?session=<id>` |
-| GET | `/api/guardian/watch` | `?session=<id>` (SSE `event: guardian`) |
-| POST | `/api/guardian/request-now` | `{ sessionId, final? }` |
-| POST | `/api/guardian/accept` | `{ sessionId, auditId?, editedText? }` |
-| POST | `/api/guardian/resume` | `{ sessionId }` |
+| GET | `/api/audit/snapshot` | `?session=<id>` |
+| GET | `/api/audit/watch` | `?session=<id>` (SSE `event: audit`) |
+| POST | `/api/audit/request-now` | `{ sessionId, final? }` |
+| POST | `/api/audit/accept` | `{ sessionId, auditId?, editedText? }` |
+| POST | `/api/audit/resume` | `{ sessionId }` |
 
 The Web dock strip registers at `conversation.input.dock` **order 5** —
 rendered between the Todo strip (order 0) and the Goal strip (order 10).
@@ -176,7 +176,7 @@ npm run check       # syntax, package manifest, tests
 npm run pack:check  # npm pack --dry-run
 ```
 
-`scripts/build-preset.mjs` regenerates `presets/guardian/agent.cordis.yml`
+`scripts/build-preset.mjs` regenerates `presets/audit/agent.cordis.yml`
 from the shipped `code` + `cordis` compositions (checked-in result, so the
 package works standalone). Tests use `test/fixtures/fake-codex.mjs` and
 `fake-claude.mjs`; no real reviewer login is required. Backend, models, effort,
@@ -191,8 +191,8 @@ configuration rather than constants.
   router supports capability hints, those names are appended after routing and
   do not alter the original user prompt.
 - Images, ordinary skills, goals, subagents, and workflows flow unchanged.
-  Guardian's two composition skills are progressive, critical-approval-only
-  additions (see `presets/guardian/agent.cordis.yml`).
+  Audit's two composition skills are progressive, critical-approval-only
+  additions (see `presets/audit/agent.cordis.yml`).
 - Persisted messages remain byte-for-byte unchanged. Acceptance only appends
   remediation, runtime-catalog, and continuation tail messages, so the prior
   message prefix remains eligible for KV-cache reuse. With

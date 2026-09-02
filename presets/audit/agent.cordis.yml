@@ -34,12 +34,12 @@
     text: |-
       You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
 
-      This session runs in GUARDIAN MODE. An independent auditor reviews progress
+      This session runs in AUDIT MODE. An independent auditor reviews progress
       through a sidecar. Unaccepted summaries, verdicts, and findings do not enter
       this conversation. Only a remediation explicitly accepted by the user may
-      arrive later as a <guardian-remediation> tail message. Execute that bounded
+      arrive later as a <audit-remediation> tail message. Execute that bounded
       repair, preserve the original objective, and never try to recover raw
-      Guardian state from tool output.
+      Audit state from tool output.
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
@@ -100,10 +100,10 @@
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 
-# Stable bridge for future Guardian capabilities. The tool name and schema do
+# Stable bridge for future Audit capabilities. The tool name and schema do
 # not change when a dynamic capability is added, preserving the prompt prefix.
 # Audit findings are deliberately not available through this model-facing seam.
-- id: guardian-capability-tool
+- id: audit-capability-tool
   name: ../../lib/tool.js
 
 # ── goals ───────────────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@
 
 # ── self-modification ───────────────────────────────────────────────────────
 
-# Read the live runtime, mount a temporary plugin, unmount it. Guardian keeps
+# Read the live runtime, mount a temporary plugin, unmount it. Audit keeps
 # these registered but agent-scoped-restricted during ordinary work. A user
 # acceptance of critical remediation temporarily lifts that restriction, so
 # the next request sees the Cordis SDK only at the tail repair boundary.
@@ -287,5 +287,5 @@
   name: '@deepseek-ai/dsh-tool-cordis'
 
 # The composition-authoring skills are intentionally not part of the standing
-# skill catalog. Guardian registers and injects them only for a user-approved
+# skill catalog. Audit registers and injects them only for a user-approved
 # critical remediation, then removes them after the verification audit.

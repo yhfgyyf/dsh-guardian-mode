@@ -1,8 +1,8 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { registerGuardianApi } from '../lib/api.js'
-import { GUARDIAN_API_BASE } from '../lib/invariant.js'
+import { registerAuditApi } from '../lib/api.js'
+import { AUDIT_API_BASE } from '../lib/invariant.js'
 
 function fakeWebServer () {
   const routes = []
@@ -18,26 +18,26 @@ function fakeWebServer () {
   }
 }
 
-test('registerGuardianApi declares all six Remote endpoints', () => {
+test('registerAuditApi declares all six Remote endpoints', () => {
   const web = fakeWebServer()
   const ctx = { get: (name) => name === 'webServer' ? web : undefined }
   const service = {
-    snapshot: async () => ({ capability: 'guardian' }),
+    snapshot: async () => ({ capability: 'audit' }),
     history: async () => [],
     subscribe: () => () => {},
     requestNow: async () => ({ ok: true }),
     accept: async () => ({ ok: true }),
     resume: async () => ({ ok: true })
   }
-  const dispose = registerGuardianApi(ctx, service)
+  const dispose = registerAuditApi(ctx, service)
   const paths = web.routes.map((r) => r.path)
   assert.deepEqual(paths.sort(), [
-    GUARDIAN_API_BASE + '/accept',
-    GUARDIAN_API_BASE + '/request-now',
-    GUARDIAN_API_BASE + '/resume',
-    GUARDIAN_API_BASE + '/snapshot',
-    GUARDIAN_API_BASE + '/history',
-    GUARDIAN_API_BASE + '/watch'
+    AUDIT_API_BASE + '/accept',
+    AUDIT_API_BASE + '/request-now',
+    AUDIT_API_BASE + '/resume',
+    AUDIT_API_BASE + '/snapshot',
+    AUDIT_API_BASE + '/history',
+    AUDIT_API_BASE + '/watch'
   ].sort())
   dispose()
 })
@@ -46,14 +46,14 @@ test('snapshot handler answers with the service view', async () => {
   const web = fakeWebServer()
   const ctx = { get: () => web }
   const service = {
-    snapshot: async (id) => ({ sessionId: id, capability: 'guardian' }),
+    snapshot: async (id) => ({ sessionId: id, capability: 'audit' }),
     history: async () => [],
     subscribe: () => () => {},
     requestNow: async () => ({ ok: true }),
     accept: async () => ({ ok: true }),
     resume: async () => ({ ok: true })
   }
-  registerGuardianApi(ctx, service)
+  registerAuditApi(ctx, service)
   const route = web.routes.find((r) => r.path.endsWith('/snapshot'))
   let status = 0
   let body = ''
@@ -61,10 +61,10 @@ test('snapshot handler answers with the service view', async () => {
     writeHead: (code, headers) => { status = code },
     end: (text) => { body = text }
   }
-  const req = { method: 'GET', url: '/api/guardian/snapshot?session=session-42' }
+  const req = { method: 'GET', url: '/api/audit/snapshot?session=session-42' }
   await route.handler(req, res)
   assert.equal(status, 200)
-  assert.deepEqual(JSON.parse(body), { sessionId: 'session-42', capability: 'guardian' })
+  assert.deepEqual(JSON.parse(body), { sessionId: 'session-42', capability: 'audit' })
 })
 
 test('watch handler streams SSE events until the socket closes', async () => {
@@ -79,7 +79,7 @@ test('watch handler streams SSE events until the socket closes', async () => {
     accept: async () => ({ ok: true }),
     resume: async () => ({ ok: true })
   }
-  registerGuardianApi(ctx, service)
+  registerAuditApi(ctx, service)
   const route = web.routes.find((r) => r.path.endsWith('/watch'))
   let frame = ''
   let headers = {}
@@ -89,12 +89,12 @@ test('watch handler streams SSE events until the socket closes', async () => {
     end: () => {}
   }
   let closeHandler
-  const req = { method: 'GET', url: '/api/guardian/watch?session=s1', on: (ev, fn) => { if (ev === 'close') closeHandler = fn } }
+  const req = { method: 'GET', url: '/api/audit/watch?session=s1', on: (ev, fn) => { if (ev === 'close') closeHandler = fn } }
   await route.handler(req, res)
   assert.equal(headers['content-type'], 'text/event-stream')
   assert.match(frame, /event: hello/)
   subscription({ paused: true })
-  assert.match(frame, /event: guardian/)
+  assert.match(frame, /event: audit/)
   assert.match(frame, /paused/)
   closeHandler()
 })
@@ -111,7 +111,7 @@ test('request-now, accept, and resume handlers parse the body', async () => {
     accept: async (sessionId, auditId, editedText) => { calls.push(['accept', sessionId, auditId, editedText]); return { ok: true } },
     resume: async (sessionId) => { calls.push(['resume', sessionId]); return { ok: true } }
   }
-  registerGuardianApi(ctx, service)
+  registerAuditApi(ctx, service)
   const now = web.routes.find((r) => r.path.endsWith('/request-now'))
   const accept = web.routes.find((r) => r.path.endsWith('/accept'))
   const resume = web.routes.find((r) => r.path.endsWith('/resume'))

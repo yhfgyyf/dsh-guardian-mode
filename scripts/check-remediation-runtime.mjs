@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { GuardianService } from '../lib/service.js'
+import { AuditService } from '../lib/service.js'
 
 const cordisNames = [
   'cordis_inspect_list',
@@ -57,7 +57,7 @@ function fixture (verdict) {
     remediationRunning: async () => {},
     remediationFailed: async (_sessionId, reason) => remediationFailures.push(reason)
   }
-  const service = Object.create(GuardianService.prototype)
+  const service = Object.create(AuditService.prototype)
   service.runtime = new Map()
   service.ctx = { agents: { get: () => agent }, get: () => undefined }
   service._withLock = async (_sessionId, work) => await work()
@@ -82,7 +82,7 @@ assert.equal(critical.sent[0].message.source.kind, 'plugin')
 const criticalText = critical.sent[0].message.content.map((block) => block.text ?? '').join('\n')
 assert.match(criticalText, /editing-cordis-compositions/)
 assert.match(criticalText, /cordis-plugin-development/)
-assert.match(criticalText, /<guardian-capability-lease/)
+assert.match(criticalText, /<audit-capability-lease/)
 assert.match(criticalText, /search_tools and describe_tools/)
 assert.doesNotMatch(criticalText, /<skill_content/)
 assert.equal(critical.sent[0].wakeup, true)
@@ -107,4 +107,4 @@ assert.equal(queueFailure.remediationFailures[0].error.code, 'QUEUE_FAILED')
 assert.equal(queueFailure.skillDisposals.length, 2)
 assert.equal(queueFailure.restrictions.length, 1)
 
-console.log('guardian approval runtime, stable tool discovery, and on-demand skill loading passed')
+console.log('audit approval runtime, stable tool discovery, and on-demand skill loading passed')

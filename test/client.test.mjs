@@ -9,7 +9,7 @@ import vm from 'node:vm'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const clientSource = readFileSync(join(root, 'lib/client.js'), 'utf8')
 
-test('the browser half registers the guardian dock at order 5', async () => {
+test('the browser half registers the audit dock at order 5', async () => {
   let loaded
   let loadedExports
   const registrations = []
@@ -32,7 +32,7 @@ test('the browser half registers the guardian dock at order 5', async () => {
     location: { origin: 'http://localhost:3080' }
   }
   vm.runInNewContext(clientSource, global)
-  assert.equal(loaded.id, 'dsh-guardian-mode')
+  assert.equal(loaded.id, 'dsh-audit-mode')
   const ctx = {
     effect: (fn) => (typeof fn === 'function' ? fn() : fn),
     locale: { register: (ns, dict) => {} },
@@ -42,11 +42,11 @@ test('the browser half registers the guardian dock at order 5', async () => {
     }
   }
   loadedExports.apply(ctx)
-  assert.deepEqual(registrations, [{ name: 'conversation.input.dock', id: 'guardian', order: 5 }])
-  assert.equal(loadedExports.GUARDIAN_DOCK_ORDER, 5)
-  assert.match(clientSource, /\/api\/guardian\/accept/)
+  assert.deepEqual(registrations, [{ name: 'conversation.input.dock', id: 'audit', order: 5 }])
+  assert.equal(loadedExports.AUDIT_DOCK_ORDER, 5)
+  assert.match(clientSource, /\/api\/audit\/accept/)
   assert.match(clientSource, /edit repair/)
-  assert.match(clientSource, /Edit Guardian remediation/)
+  assert.match(clientSource, /Edit Audit remediation/)
   assert.match(clientSource, /execute edited after tool/)
   assert.match(clientSource, /execute edited now/)
   assert.match(clientSource, /editedText: editedText/)

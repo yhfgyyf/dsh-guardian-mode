@@ -1,6 +1,6 @@
 {
- "name": "dsh-guardian-mode",
-  "version": "0.5.0",
+ "name": "dsh-audit-mode",
+  "version": "0.6.0",
  "description": "Fifth DeepSeek Harness mode with configurable Codex, Claude Code, or DSH audits, user-approved remediation turns, progressive Cordis/skill elevation, safety pauses, and Web/TUI review controls.",
  "license": "MIT",
  "type": "module",
@@ -40,18 +40,18 @@
   "dsh",
   "dsh-plugin",
   "agent-preset",
-  "guardian",
+  "audit",
   "auditor",
   "codex",
   "claude-code"
  ],
  "repository": {
   "type": "git",
-  "url": "git+https://github.com/yhfgyyf/dsh-guardian-mode.git"
+  "url": "git+https://github.com/yhfgyyf/dsh-audit-mode.git"
  },
- "homepage": "https://github.com/yhfgyyf/dsh-guardian-mode#readme",
+ "homepage": "https://github.com/yhfgyyf/dsh-audit-mode#readme",
  "bugs": {
-  "url": "https://github.com/yhfgyyf/dsh-guardian-mode/issues"
+  "url": "https://github.com/yhfgyyf/dsh-audit-mode/issues"
  },
   "peerDependencies": {
   "@deepseek-ai/cordis": "^4.0.1",

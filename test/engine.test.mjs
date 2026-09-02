@@ -3,11 +3,11 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { GuardianEngine } from '../lib/engine.js'
+import { AuditEngine } from '../lib/engine.js'
 import { SidecarStore } from '../lib/sidecar.js'
 
 async function fixture (fn, options = {}) {
-  const dir = await mkdtemp(join(tmpdir(), 'guardian-engine-'))
+  const dir = await mkdtemp(join(tmpdir(), 'audit-engine-'))
   let now = 0
   const calls = []
   const companion = {
@@ -31,7 +31,7 @@ async function fixture (fn, options = {}) {
     async close () { calls.push(['close']) }
   }
   const store = new SidecarStore({ env: { DSH_HOME: dir } })
-  const engine = new GuardianEngine(store, companion, { now: () => now })
+  const engine = new AuditEngine(store, companion, { now: () => now })
   const clock = (value) => { now = value }
   try { await fn({ engine, store, calls, clock }) } finally { await rm(dir, { recursive: true, force: true }) }
 }
@@ -66,9 +66,9 @@ test('auto, manual, and final audit prompts respect approval-gated verdict isola
     for (const [index, kind] of ['auto', 'manual', 'final'].entries()) {
       for (const prompt of [summaryPrompts[index], auditPrompts[index]]) {
         assert.match(prompt, new RegExp(`active ${kind} audit triggered after trace capture`))
-        assert.match(prompt, /Unaccepted Guardian verdicts and feedback are sidecar\/UI-only/)
-        assert.match(prompt, /only inside a <guardian-remediation> tail message after explicit user acceptance/)
-        assert.match(prompt, /Do not report absent Guardian output/)
+        assert.match(prompt, /Unaccepted Audit verdicts and feedback are sidecar\/UI-only/)
+        assert.match(prompt, /only inside a <audit-remediation> tail message after explicit user acceptance/)
+        assert.match(prompt, /Do not report absent Audit output/)
       }
     }
   })

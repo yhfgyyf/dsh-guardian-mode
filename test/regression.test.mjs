@@ -14,15 +14,15 @@ test('the auto router still routes exactly the original four modes', () => {
   assert.ok(match, 'ROUTABLE_PRESETS declaration found')
   const modes = match[1].split(',').map((s) => s.trim().replace(/['"]/g, '')).filter(Boolean)
   assert.deepEqual(modes, ['standard', 'code', 'minimal', 'cordis'])
-  assert.ok(!modes.includes('guardian'), 'guardian must not be auto-routed')
+  assert.ok(!modes.includes('audit'), 'audit must not be auto-routed')
   assert.match(router, /decision priority/i)
   // the ROUTER_SYSTEM_PROMPT still names only four presets
   const prompt = router.match(/export const ROUTER_SYSTEM_PROMPT = `([\s\S]*?)`/)
   assert.ok(prompt)
-  assert.doesNotMatch(prompt[1], /guardian/)
+  assert.doesNotMatch(prompt[1], /audit/)
 })
 
-test('the guardian bundle never touches session.delete or session removal APIs', () => {
+test('the audit bundle never touches session.delete or session removal APIs', () => {
   const libs = readdirSync(join(root, 'lib'))
   for (const file of libs) {
     const src = readFileSync(join(root, 'lib', file), 'utf8')
@@ -30,12 +30,19 @@ test('the guardian bundle never touches session.delete or session removal APIs',
   }
 })
 
-test('image and skill surfaces are preserved in the guardian preset', () => {
-  const composition = readFileSync(join(root, 'presets/guardian/agent.cordis.yml'), 'utf8')
+test('the audit service reads both current and pre-alpha session event surfaces', () => {
+  const service = readFileSync(join(root, 'lib/service.js'), 'utf8')
+  assert.match(service, /snapshotEvents/u)
+  assert.match(service, /session\?\.events \?\? \[\]/u)
+  assert.doesNotMatch(service, /agent\.session\.events/u)
+})
+
+test('image and skill surfaces are preserved in the audit preset', () => {
+  const composition = readFileSync(join(root, 'presets/audit/agent.cordis.yml'), 'utf8')
   assert.match(composition, /tool-skill/)
   assert.match(composition, /skill-filesystem/)
   assert.match(composition, /tool-bash/)          // shell (image pipelines)
   assert.match(composition, /tool-fs/)            // filesystem reads
-  const personality = readFileSync(join(root, 'presets/guardian/agent.cordis.yml'), 'utf8')
+  const personality = readFileSync(join(root, 'presets/audit/agent.cordis.yml'), 'utf8')
   assert.match(personality, /agent-instructions/)
 })

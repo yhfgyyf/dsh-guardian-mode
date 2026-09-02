@@ -1,4 +1,4 @@
-// Build presets/guardian/agent.cordis.yml from the shipped code + cordis
+// Build presets/audit/agent.cordis.yml from the shipped code + cordis
 // compositions: code (PTC) first, then cordis-specific rows replace/append.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -34,8 +34,8 @@ if (!process.argv.includes('--raw-only')) {
   )
   const toolCordis = cordis.match(/- id: tool-cordis\n  name: '@deepseek-ai\/dsh-tool-cordis'/u)?.[0]
   if (toolCordis === undefined) throw new Error('shipped cordis preset has no tool-cordis row')
-  mkdirSync(join(root, 'presets', 'guardian'), { recursive: true })
-  writeFileSync(join(root, 'presets', 'guardian', 'agent.cordis.yml'),
+  mkdirSync(join(root, 'presets', 'audit'), { recursive: true })
+  writeFileSync(join(root, 'presets', 'audit', 'agent.cordis.yml'),
     withSkills.replace(/\n$/, '') + '\n\n# ── self-modification ───────────────────────────────────────────────────────\n\n' + toolCordis + '\n')
-  console.log('presets/guardian/agent.cordis.yml rebuilt from shipped code + cordis')
+  console.log('presets/audit/agent.cordis.yml rebuilt from shipped code + cordis')
 }
